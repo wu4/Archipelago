@@ -1,0 +1,2 @@
+schema==0.7.5
+inflection==0.5.1
