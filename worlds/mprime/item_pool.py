@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING
-from .Extracted import items, locations
+from .generated import items, locations
 
 if TYPE_CHECKING:
     from BaseClasses import MultiWorld
@@ -20,13 +20,13 @@ def generate_itempool(world: "MetroidPrimeWorld", player: int) -> None:
     world.multiworld.push_precollected(world.create_item('Power Suit'))
     world.remove_from_start_inventory.append('Power Suit')
 
-    if not world.shuffle_power_beam:
+    if not world.options.shuffle_power_beam:
         world.multiworld.push_precollected(world.create_item('Power Beam'))
         world.remove_from_start_inventory.append('Power Beam')
-    if not world.shuffle_combat_visor:
+    if not world.options.shuffle_combat_visor:
         world.multiworld.push_precollected(world.create_item('Combat Visor'))
         world.remove_from_start_inventory.append('Combat Visor')
-    if not world.shuffle_scan_visor:
+    if not world.options.shuffle_scan_visor:
         world.multiworld.push_precollected(world.create_item('Scan Visor'))
         world.remove_from_start_inventory.append('Scan Visor')
 

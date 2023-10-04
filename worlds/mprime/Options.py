@@ -1,5 +1,6 @@
-from .Extracted import generated_options
-from Options import Toggle, AssembleOptions
+from dataclasses import dataclass
+from .generated import GeneratedOptions
+from Options import Toggle, AssembleOptions, PerGameCommonOptions
 
 class ShufflePowerBeam(Toggle):
   """Shuffles the Power Beam into the pool."""
@@ -17,11 +18,9 @@ class ItemsEveryRoom(Toggle):
   """Adds an item into every room."""
   default = 0
 
-options: dict[str, AssembleOptions] = {
-  "shuffle_power_beam": ShufflePowerBeam,
-  "shuffle_combat_visor": ShuffleCombatVisor,
-  "shuffle_scan_visor": ShuffleScanVisor,
-  "items_every_room": ItemsEveryRoom,
-
-  **generated_options
-}
+@dataclass
+class MetroidPrimeOptions(GeneratedOptions, PerGameCommonOptions):
+  shuffle_power_beam: ShufflePowerBeam
+  shuffle_combat_visor: ShuffleCombatVisor
+  shuffle_scan_visor: ShuffleScanVisor
+  items_every_room: ItemsEveryRoom

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from Options import Range
 {% for trick_name, trick_data in tricks %}
 class {{trick_name}}(Range):
@@ -8,8 +9,8 @@ class {{trick_name}}(Range):
     default = 0
 {%- endfor %}
 
-generated_options = {
+@dataclass
+class GeneratedOptions:
 {% for trick_name, trick_data in tricks %}
-    "{{trick_name_gen(trick_data["long_name"])}}": {{trick_name}},
+    {{trick_name_gen(trick_data["long_name"])}}: {{trick_name}}
 {%- endfor %}
-}
