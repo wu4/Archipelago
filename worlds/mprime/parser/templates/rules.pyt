@@ -22,12 +22,11 @@ def set_rules(self: World):
     o = self.options
     from . import logic as l
 
-    {{ast_imports}}
-    
-    t: ConnectionDict
-    {%- for line in template_lines %}
-    {{line}}
+    t: ConnectionDict = {
+    {%- for template_name, requirements in templates.items() %}
+        "{{template_name}}": {{requirements}},
     {%- endfor %}
+    }
 
     dock_requirements: ConnectionDict = {
     {%- for dock_type, requirements in dock_requirements.items() %}
@@ -37,8 +36,6 @@ def set_rules(self: World):
     {%- endfor %}
     }
 
-    from ast import Expression
-    {{e_def}}
     add_exits_to_world(multiworld, p, (
     {%- for node_from, node_rules in rules %}
         {%- if node_rules.has_location != "items_every_room" %}

@@ -30,7 +30,7 @@ def load_region_json(header_filename: str, region_filename: str) -> DataTypes.Re
 def parse_dock_requirements(data: RandovaniaData, dock: DataTypes.DockWeaknessEntry) -> Optional[str]:
     lock = dock["lock"]
     if lock is None:
-        return parse_connection_requirements(data, dock["requirement"], True)
+        return parse_connection_requirements(data, dock["requirement"])
     else:
         return parse_connection_requirements(data, {
             "type": "and",
@@ -38,14 +38,14 @@ def parse_dock_requirements(data: RandovaniaData, dock: DataTypes.DockWeaknessEn
                 "comment": None,
                 "items": [dock["requirement"], lock["requirement"]]
             }
-        }, True)
+        })
 
 @dataclass
-class RegionInfo:
+class NodeInfo:
     has_location: Optional[Literal["pickup", "event", "items_every_room"]]
     event_name: Optional[str]
     event_skippable: Optional[bool]
-    connections: list[tuple[str, str]]
+    connections: list[tuple[str, DataTypes.RequirementData]]
     dock_connection: Optional[tuple[str, str]]
     
     def __init__(self, data: RandovaniaData, node: DataTypes.Node, area_name: str, region_name: str) -> None:
@@ -67,7 +67,7 @@ class RegionInfo:
         if node["node_type"] == "dock":
             rule = data.dock_requirements[node["default_dock_weakness"]]
             if rule is not None:
-                self.dock_connection = (absolute_location_format(node["default_connection"]), f"e(dock_requirements['{node['default_dock_weakness']}'])")
+                self.dock_connection = (absolute_location_format(node["default_connection"]), f"dock_requirements['{node['default_dock_weakness']}']")
         
         if False:
             for node_connection_name, requirements in node["connections"].items():
@@ -80,9 +80,39 @@ class RegionInfo:
                     a.parse()
         
         self.connections = [
-            (absolute_node_format(node_connection_name, area_name, region_name), parse_connection_requirements(data, requirements))
+            (absolute_node_format(node_connection_name, area_name, region_name), requirements)
             for node_connection_name, requirements in node["connections"].items()
         ]
+
+class NodeVisitor:
+    visited: set[str]
+    nodes: dict[str, NodeInfo]
+
+    def __init__(self, nodes: dict[str, NodeInfo]) -> None:
+        self.nodes = nodes
+        self.visited = set()
+        self.visit_connection("Ship (Landing Site, Tallon Overworld)", ())
+        print(self.visited)
+        
+    def visit_connection(self, node_name: str, linear_node_chain: tuple[str, ...]):
+        node = self.nodes[node_name]
+        linear_node_chain = (*linear_node_chain, node_name)
+        if len(node.connections) <= 2:
+            if len(linear_node_chain) > 2:
+                last_name = linear_node_chain[-2]
+                if last_name in list(map(lambda x: x[0], node.connections)):
+                    pass
+        else:
+            if len(linear_node_chain) > 1:
+                print(linear_node_chain)
+            linear_node_chain = ()
+
+        for connection_name, _ in node.connections:
+            if connection_name in self.visited: continue
+
+            self.visited.add(connection_name)
+            self.visit_connection(connection_name, linear_node_chain)
+
 
 class RandovaniaData:
     header: DataTypes.Header
@@ -93,7 +123,7 @@ class RandovaniaData:
     events_short_to_long: dict[str, str]
     tricks_short_to_long: dict[str, str]
     dock_requirements: dict[str, Optional[str]]
-    rules: list[tuple[str, RegionInfo]]
+    rules: list[tuple[str, NodeInfo]]
     template_lines: list[str]
     damage_resistances: dict[str, dict[str, float]]
     
@@ -130,68 +160,72 @@ class RandovaniaData:
         }
 
         self.rules = [
-            (absolute_node_format(node_name, area_name, region["name"]), RegionInfo(self, node, area_name, region["name"]))
+            (absolute_node_format(node_name, area_name, region["name"]), NodeInfo(self, node, area_name, region["name"]))
             for region in self.regions
             for area_name, area in region["areas"].items()
             for node_name, node in area["nodes"].items()
         ]
         
-        def deep_search_template_calls(req: DataTypes.RequirementData) -> set[str]:
-            accum: set[str] = set()
-            if req["type"] == "and" or req["type"] == "or":
-                for names_set in map(deep_search_template_calls, req["data"]["items"]):
-                    accum.update(names_set)
-            elif req["type"] == "template":
-                accum.add(req["data"])
-            return accum
+        # def deep_search_template_calls(req: DataTypes.RequirementData) -> set[str]:
+        #     accum: set[str] = set()
+        #     if req["type"] == "and" or req["type"] == "or":
+        #         for names_set in map(deep_search_template_calls, req["data"]["items"]):
+        #             accum.update(names_set)
+        #     elif req["type"] == "template":
+        #         accum.add(req["data"])
+        #     return accum
 
-        template_requirements = list(self.header["resource_database"]["requirement_template"].values())
-        
-        template_dependencies: dict[str, set[str]] = {
-            template_name: deep_search_template_calls(req)
-            for template_name, req in self.header["resource_database"]["requirement_template"].items()
-        }
+        # template_requirements = list(self.header["resource_database"]["requirement_template"].values())
+        # 
+        # template_dependencies: dict[str, set[str]] = {
+        #     template_name: deep_search_template_calls(req)
+        #     for template_name, req in self.header["resource_database"]["requirement_template"].items()
+        # }
 
-        template_builder: list[list[tuple[str, str]]] = []
+        # template_builder: list[list[tuple[str, str]]] = []
 
-        reqs: set[str] = set()
-        reqs.update(self.header["resource_database"]["requirement_template"].keys())
-            
+        # reqs: set[str] = set()
+        # reqs.update(self.header["resource_database"]["requirement_template"].keys())
+        #     
         header_templates = self.header["resource_database"]["requirement_template"]
 
-        passn = 0
-        while len(reqs) > 0:
-            passn += 1
-            tmp: list[tuple[str, str]] = []
-            queue_remove: set[str] = set()
-            for template_name in reqs:
-                if not template_dependencies[template_name].isdisjoint(reqs): continue
-                tmp.append((template_name, parse_connection_requirements(self, header_templates[template_name], True)))
-                queue_remove.add(template_name)
-                
-            template_builder.append(tmp)
+        # passn = 0
+        # while len(reqs) > 0:
+        #     passn += 1
+        #     tmp: list[tuple[str, str]] = []
+        #     queue_remove: set[str] = set()
+        #     for template_name in reqs:
+        #         if not template_dependencies[template_name].isdisjoint(reqs): continue
+        #         tmp.append((template_name, parse_connection_requirements(self, header_templates[template_name], True)))
+        #         queue_remove.add(template_name)
+        #         
+        #     template_builder.append(tmp)
 
-            reqs.difference_update(queue_remove)
-            
-        def build_templates(template_tpl: tuple[int, list[tuple[str, str]]]) -> str:
-            (i, templates) = template_tpl
-            string_builder = []
-            if i == 0:
-                string_builder.append("t={")
-            else:
-                string_builder.append("t.update({")
+        #     reqs.difference_update(queue_remove)
+        #     
+        # def build_templates(template_tpl: tuple[int, list[tuple[str, str]]]) -> str:
+        #     (i, templates) = template_tpl
+        #     string_builder = []
+        #     if i == 0:
+        #         string_builder.append("t={")                
+        #     else:
+        #         string_builder.append("t.update({")
 
-            for template_name, template in templates:
-                string_builder.append(f"'{template_name}': {template},")
+        #     for template_name, template in templates:
+        #         string_builder.append(f"'{template_name}': {template},")
 
-            if i == 0:
-                string_builder.append("}")
-            else:
-                string_builder.append("})")
-            
-            return ''.join(string_builder)
+        #     if i == 0:
+        #         string_builder.append("}")
+        #     else:
+        #         string_builder.append("})")
+        #     
+        #     return ''.join(string_builder)
 
-        self.template_lines = list(map(build_templates, enumerate(template_builder)))
+        # self.template_lines = list(map(build_templates, enumerate(template_builder)))
+        self.templates = {
+            template_name: parse_connection_requirements(self, reqs)
+            for template_name, reqs in header_templates.items()
+        }
 
         self.damage_resistances = {
             item["name"]: {i["name"]: i["multiplier"] for i in item["reductions"]}

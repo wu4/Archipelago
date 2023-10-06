@@ -3,7 +3,6 @@ from __future__ import annotations
 from . import Types as DataTypes
 from .util import trick_name_gen, partition, intersperse
 from enum import Enum
-from .writing_ast import And, Not, Or, Constant, Name, Lambda, Call, LogicCall, StateHas, StateCountGtE, quoted_str
 
 from typing import Optional, TYPE_CHECKING, cast, Iterable, Callable
 if TYPE_CHECKING:
@@ -18,53 +17,6 @@ def parse_connection_requirements(data: RandovaniaData, req: DataTypes.Requireme
     a = RequirementParser(data, req)
     return a.parse(exclude_compile)
 
-# def logic_as_str(logics: Iterable[str], is_and: bool) -> str:
-#     li = list(logics)
-#     if len(li) == 0:
-#         return f"Constant({is_and})"
-#     elif len(li) == 1:
-#         return str(li[0])
-#     else:
-#         return f"{'a' if is_and else 'o'}(" + ','.join(map(str, li)) + ')'
-
-ReqTuple = tuple[int, DataTypes.RequirementData]
-Req = DataTypes.RequirementData
-def staticness_partition3(
-    iterable: Iterable[DataTypes.RequirementData]
-) -> tuple[list[Req],
-           list[Req],
-           list[Req]]:
-    statics: list[Req] = []
-    semi_statics: list[Req] = []
-    dynamics: list[Req] = []
-    for item in iterable:
-        staticness = get_staticness(item)
-        if staticness == Staticness.DYNAMIC:
-            dynamics.append(item)
-        elif staticness == Staticness.SEMISTATIC:
-            semi_statics.append(item)
-        else:
-            statics.append(item)
-    return statics, semi_statics, dynamics
-
-def staticness_partition3_enumerated(
-    iterable: Iterable[DataTypes.RequirementData]
-) -> tuple[list[ReqTuple],
-           list[ReqTuple],
-           list[ReqTuple]]:
-    statics: list[ReqTuple] = []
-    semi_statics: list[ReqTuple] = []
-    dynamics: list[ReqTuple] = []
-    for item in enumerate(iterable):
-        staticness = get_staticness(item[1])
-        if staticness == Staticness.DYNAMIC:
-            dynamics.append(item)
-        elif staticness == Staticness.SEMISTATIC:
-            semi_statics.append(item)
-        else:
-            statics.append(item)
-    return statics, semi_statics, dynamics
-
 class RequirementRenderer:
     data: RandovaniaData
 
@@ -77,33 +29,26 @@ class RequirementRenderer:
         if data["type"] == "items":
             item_name = self.data.items_short_to_long[data['name']]
             if item_name == "Missile":
-                return LogicCall("has_missiles", Constant(str(data["amount"])))
-                return f"l_hm({data['amount']})"
-                return f"logic.has_missiles(state, player, {data['amount']})"
+                return f"l.has_missiles(s, p, {data['amount']})"
             else:
                 if data["amount"] == 1:
-                    return StateHas(item_name)
-                    return f"s_has('{item_name}')"
-                    return f"state.has('{item_name}', player)"
+                    return f"s.has('{item_name}', p)"
                 else:
-                    return StateCountGtE(item_name, data["amount"])
-                    return f"s_gte('{item_name}', {data['amount']})"
-                    return f"state.count('{item_name}', player) >= {data['amount']}"
+                    return f"s.count('{item_name}',p)>={data['amount']}"
 
         elif data["type"] == "damage":
-            return LogicCall("can_sustain_damage", Constant(str(data['amount'])), Constant(quoted_str(data['name'])))
-            return f"l_csd({data['amount']},'{data['name']}')"
-            return f"logic.can_sustain_damage(state, player, {data['amount']}, '{data['name']}')"
+            return f"l.can_sustain_damage(s,p,{data['amount']},'{data['name']}')"
 
         elif data["type"] == "events":
-            return StateHas(self.data.events_short_to_long[data["name"]])
-            return f"s_has('{self.data.events_short_to_long[data['name']]}')"
-            return f"state.has('{events_short_to_long[data['name']]}', player)"
+            return f"s.has('{self.data.events_short_to_long[data['name']]}',p)"
 
         elif data["type"] == "misc":
-            return LogicCall("has_misc", Constant(quoted_str(data["name"])))
-            return f"l_hmisc('{data['name']}')"
-            return f"logic.has_misc(state, player, '{data['name']}')"
+            return f"l.has_misc(s,p,'{data['name']}')"
+
+        elif data["type"] == "tricks":
+            trick_name = trick_name_gen(self.data.tricks_short_to_long[data['name']])
+            ret_str = f"o.{trick_name}.value>={data['amount']}"
+            return ret_str
 
         else:
             raise ValueError(f"unknown resource requirement: {data}")
@@ -113,13 +58,13 @@ class RequirementRenderer:
             return self.render_dynamic_requirements(req["type"] == "and", *req["data"]["items"])
 
         elif req["type"] == "template":
-            return f"t['{req['data']}']"
+            return f"t['{req['data']}'](s)"
 
         elif req["type"] == "resource":
             data = req["data"]
 
             if data["negate"]:
-                return Not(self.render_dynamic_resource_requirement(req))
+                return f"not {self.render_dynamic_resource_requirement(req)}"
             else:
                 return self.render_dynamic_resource_requirement(req)
 
@@ -127,14 +72,18 @@ class RequirementRenderer:
         
     def render_dynamic_requirements(self, is_and: bool, *reqs: DataTypes.RequirementData) -> str:
         if len(reqs) == 0:
-            return Constant(str(is_and))
+            return f"lambda _:{is_and}"
         elif len(reqs) == 1:
             return self.render_dynamic_requirement(reqs[0])
         else:
-            logic_func = And if is_and else Or
+            return '(' + ' '.join(intersperse(
+                'and' if is_and else 'or',
+                map(self.render_dynamic_requirement, reqs)
+            )) + ')'
             return logic_func(*map(self.render_dynamic_requirement, reqs))
     
     def render_static_requirement(self, req: DataTypes.RequirementData) -> str:
+        raise DeprecationWarning
         if req["type"] == "and" or req["type"] == "or":
             return self.render_static_requirements(req["type"] == "and", *(req["data"]["items"]))
         elif req["type"] == "resource":
@@ -153,6 +102,7 @@ class RequirementRenderer:
         raise ValueError(f"unknown static resource requirement type {req['type']}")
         
     def render_static_requirements(self, is_and: bool, *reqs: DataTypes.RequirementData) -> str:
+        raise DeprecationWarning
         if len(reqs) == 0:
             return Constant(str(is_and))
         elif len(reqs) == 1:
@@ -220,79 +170,6 @@ class RequirementParser:
                 }
             }
         self.renderer = RequirementRenderer(data)
-        
-    def navigate_to(self, navigation_key: NavigationKey) -> DataTypes.RequirementData:
-        a = self.head
-
-        for k in navigation_key:
-            if a["type"] != "and" and a["type"] != "or":
-                raise IndexError("trying to navigate through non and/or requirement")
-
-            a = a["data"]["items"][k]
-
-        return a
-       
-    # def find_parent_or(self, navigation_key: NavigationKey) -> tuple[NavigationKey, AndOrRequirement]:
-    #     depth = len(navigation_key)
-
-    #     for i in range(1, depth-1):
-    #         nav = navigation_key[:-i]
-    #         a = cast(AndOrRequirement, self.navigate_to(nav))
-    #         if not a.is_and:
-    #             return (nav, a)
-    #     
-    #     return ((), self.head)
-    
-    # def get_parent(self, navigation_key: NavigationKey) -> tuple[NavigationKey, DataTypes.Logic]:
-    #     nav = navigation_key[:-1]
-    #     a = cast(DataTypes.Logic, self.navigate_to(nav))
-    #     return (nav, a)
-
-    # def isolate_statics(self, req: Optional[DataTypes.Logic] = None, navigation_key: NavigationKey = ()) -> list[tuple[NavigationKey, str]]:
-    #     if req == None:
-    #         req = self.head
-
-    #     total_statics: list[tuple[NavigationKey, str]] = []
-    #     
-    #     for i, item in enumerate(req["data"]["items"]):
-    #         staticness = get_staticness(item)
-    #         if staticness == Staticness.DYNAMIC:
-    #             continue
-    #         # if not static.tainted_with_statics:
-    #         #     continue
-
-    #         if (item["type"] == "and" or item["type"] == "or") and staticness != Staticness.STATIC:
-    #             nav = (*navigation_key, i)
-    #             total_statics.extend(self.isolate_statics(item, nav))
-    #         else:
-    #             # purely static element found. locate nearest parent and save it
-
-    #             nav = (*navigation_key, i)
-    #             parent_nav, _ = self.get_parent(nav)
-    #             total_statics.append((parent_nav, self.renderer.render_static_requirement(item)))
-
-    #     return total_statics
-    
-    def deep_and_search(
-        self,
-        req: DataTypes.Logic,
-        used: set[NavigationKey],
-        navigation_key: NavigationKey
-    ) -> list[tuple[NavigationKey, DataTypes.RequirementData]]:
-        ret = []
-        for i, sub_req in enumerate(req["data"]["items"]):
-            nav = (*navigation_key, i)
-            if nav in used: continue
-            staticness = get_staticness(sub_req)
-            if staticness == Staticness.STATIC:
-                # print(nav, sub_req)
-                used.add(nav)
-                ret.append((nav, sub_req))
-            elif sub_req["type"] == "and":
-                if staticness != Staticness.DYNAMIC:
-                    ret.extend(self.deep_and_search(sub_req, used, nav))
-        
-        return ret
 
     def parse_through( self,
                        static_entry_points: list[tuple[NavigationKey, str]],
@@ -366,7 +243,18 @@ class RequirementParser:
             return ""
 
     def parse(self, exclude_compile = False):
-        staticness = get_staticness(self.head)
+        if len(self.head["data"]["items"]) == 0:
+            if not exclude_compile and self.head["type"] == "and":
+                return "None"
+            else:
+                return f"lambda _:{self.head['type'] == 'and'}"
+
+        total = self.renderer.render_dynamic_requirements(self.head["type"] == "and", *self.head["data"]["items"])
+
+        if exclude_compile:
+            return total
+        else:
+            return f"lambda s:{total}"
         if staticness == "static":
             fully_static_logic = self.renderer.render_static_requirements(self.head["type"] == "and", *self.head["data"]["items"])
             return f"(lambda _:True) if {fully_static_logic} else (lambda _:False)"
@@ -377,16 +265,6 @@ class RequirementParser:
         # static_entry_points = self.isolate_statics()
 
         total = self.parse_through([], used = set())
-        # eval(Lambda(args=arguments(args=[arg(arg='state')]), body=BoolOp(op=And(), values=[Call(func=Attribute(value=Name(id='state', ctx=Load()), attr='has', ctx=Load()), args=[Constant(value='Power Beam'), Name(id='player', ctx=Load())], keywords=[]), Call(func=Attribute(value=Name(id='logic', ctx=Load()), attr='has_missiles', ctx=Load()), args=[Name(id='state', ctx=Load()), Name(id='player', ctx=Load()), Constant(value=5)], keywords=[]), Call(func=Attribute(value=Name(id='state', ctx=Load()), attr='has', ctx=Load()), args=[Constant(value='Charge Beam'), Name(id='player', ctx=Load())], keywords=[]), Call(func=Attribute(value=Name(id='state', ctx=Load()), attr='has', ctx=Load()), args=[Constant(value='Super Missile'), Name(id='player', ctx=Load())], keywords=[]), Call(func=Subscript(value=Name(id='templates', ctx=Load()), slice=Constant(value='Can Use Arm Cannon'), ctx=Load()), args=[Name(id='state', ctx=Load())], keywords=[])]))
 
         # from ast import BoolOp, And, Constant, Or, Name, Load, Attribute, Call, Subscript, Expression, arguments, arg, Lambda
         # return f"eval(compile({total}, '<generated>', 'eval'))"
-        if total == "":
-            if not exclude_compile and self.head["type"] == "and":
-                return "None"
-            else:
-                return Lambda(["_"], Constant(str(self.head["type"] == "and")))
-        if exclude_compile:
-            return total
-        else:
-            return f"e({total})"
