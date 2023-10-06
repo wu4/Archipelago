@@ -16,39 +16,19 @@ def add_exits_to_world(world: MultiWorld, player: int, regions: tuple[RegionRule
 ConnectionDict = dict[str, ConnectionRule]
 
 def set_rules(self: World):
+    print("rules start!")
     multiworld = self.multiworld
-    player = self.player
-    options = self.options
-    from . import logic
+    p = self.player
+    o = self.options
+    from . import logic as l
 
-    # from ast import BoolOp as BO, And as A, Constant as Co, Or as O, Name as N, Load as Lo, Attribute as At, Call as C, Subscript as S, Expression as E, arguments as ags, arg as a, Lambda as L
-    from ast import And, Or, Not, Load
-    from typing import Any
-    {%- for name in ["BoolOp", "UnaryOp", "Constant", "Name", "Attribute", "Call", "Subscript", "Expression", "arg", "Lambda", "Compare", "GtE"] %}
-    from ast import {{name}} as {{name}}_
-    def {{name}}(*args, **kwargs): return {{name}}_(*args, **kwargs, lineno=0, col_offset=0, end_lineno=0, end_col_offset=0)
+    {{ast_imports}}
+    
+    t: ConnectionDict
+    {%- for line in template_lines %}
+    {{line}}
     {%- endfor %}
-    from ast import arguments as arguments_
-    def arguments(*args, **kwargs): return arguments_(*args, **kwargs, kwonlyargs=[], kw_defaults=[], defaults=[])
-        
-    def e(b):
-        import astvalidate
-        # import ast
-        # print(ast.dump(b, False))
-        token = Expression(Lambda(arguments([], [arg('state')]), b), )
-        # astvalidate.validate(token)
-        nonlocal options
-        nonlocal player
-        nonlocal templates
-        nonlocal logic
-        # print(locals())
-        return eval(compile(token, '<generated>', 'eval'), locals())
 
-    templates: ConnectionDict = {
-    {%- for template_name, requirements in templates.items() %}
-        "{{template_name}}": {{requirements}},
-    {%- endfor %}
-    }
     dock_requirements: ConnectionDict = {
     {%- for dock_type, requirements in dock_requirements.items() %}
     {%- if requirements is not none %}
@@ -56,7 +36,10 @@ def set_rules(self: World):
     {%- endif %}
     {%- endfor %}
     }
-    add_exits_to_world(multiworld, player, (
+
+    from ast import Expression
+    {{e_def}}
+    add_exits_to_world(multiworld, p, (
     {%- for node_from, node_rules in rules %}
         {%- if node_rules.has_location != "items_every_room" %}
             (
@@ -72,3 +55,4 @@ def set_rules(self: World):
         {%- endif %}
     {%- endfor %}
     ))
+    print("rules end!")

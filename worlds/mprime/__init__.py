@@ -5,7 +5,7 @@ from BaseClasses import Item
 from worlds.AutoWorld import World
 from .settings import MetroidPrimeSettings
 from . import generated
-from .generated import items, locations
+# from .generated import items, locations
 # from .Extracted import set_rules, create_regions, items, locations
 from .options import MetroidPrimeOptions
 from .Items import MetroidPrimeItem, MetroidPrimeEvent
@@ -26,9 +26,9 @@ class MetroidPrimeWorld(World):
     base_id = 0xbad_babe
 
     item_name_to_id = {name: id for
-                       id, name in enumerate(items, base_id)}
+                       id, name in enumerate(generated.items, base_id)}
     location_name_to_id = {name: id for
-                           id, name in enumerate(locations, base_id)}
+                           id, name in enumerate(generated.locations, base_id)}
 
     item_name_groups = {}
 

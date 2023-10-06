@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from .generated import GeneratedOptions
+from . import generated
 from Options import Toggle, AssembleOptions, PerGameCommonOptions
 
 class ShufflePowerBeam(Toggle):
@@ -19,7 +19,7 @@ class ItemsEveryRoom(Toggle):
   default = 0
 
 @dataclass
-class MetroidPrimeOptions(GeneratedOptions, PerGameCommonOptions):
+class MetroidPrimeOptions(generated.GeneratedOptions, PerGameCommonOptions):
   shuffle_power_beam: ShufflePowerBeam
   shuffle_combat_visor: ShuffleCombatVisor
   shuffle_scan_visor: ShuffleScanVisor
