@@ -1,8 +1,5 @@
 from BaseClasses import CollectionState
 
-from worlds.AutoWorld import LogicMixin
-from .utils import get_underscored
-
 try:
     from .generated import damage_resistances
 except ImportError:
@@ -11,12 +8,13 @@ except ImportError:
 
 from typing import Callable
 
-generation_exports: dict[str, Callable] = { }
+generation_exports: dict[str, Callable] = {}
 
 def generate_as(name: str):
     def inner(func):
         generation_exports[name] = func
         return func
+
     return inner
 
 def has_energy(state: CollectionState, player: int, amount: int) -> bool:

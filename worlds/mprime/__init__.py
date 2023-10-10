@@ -35,9 +35,9 @@ class MetroidPrimeWorld(World):
     remove_from_start_inventory: list[str]
     starting_items: Counter[str]
 
-    create_regions = generated.create_regions_and_events
+    create_regions = generated.regions.create_regions_and_events
 
-    set_rules = generated.set_rules
+    set_rules = generated.rules.set_rules
 
     def generate_basic(self) -> None:
         self.multiworld.completion_condition[self.player] = lambda state: state.has("Credits", self.player)

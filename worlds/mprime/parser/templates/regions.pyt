@@ -1,16 +1,6 @@
-from BaseClasses import MultiWorld, Region
+from BaseClasses import Region
 from worlds.AutoWorld import World
-from .locations import MetroidPrimeLocation
-from .utils import region_format
-from typing import Callable
-
-locations = (
-    {%- for node_from in data.rules.keys() -%}
-        {%- if data.node_info[node_from].pickup -%}
-            "{{tuplefmt(node_from)}}",
-        {%- endif -%}
-    {%- endfor -%}
-)
+from ..locations import MetroidPrimeLocation
 
 def create_regions_and_events(self: World):
     multiworld = self.multiworld
@@ -42,14 +32,14 @@ def create_regions_and_events(self: World):
         {%- for node_from, info in data.node_info.items() -%}
             {%- if info.items_every_room -%}
             {%- elif info.pickup -%}
-                crl("{{tuplefmt(node_from)}}"),
+                crl("{{methods["tuplefmt"](node_from)}}"),
             {%- elif info.event_name is not none -%}
-                cre("{{tuplefmt(node_from)}}","{{info.event_name}}",{{not info.unskippable_event}}),
+                cre("{{methods["tuplefmt"](node_from)}}","{{info.event_name}}",{{not info.unskippable_event}}),
             {%- else -%}
-                cr("{{tuplefmt(node_from)}}"),
+                cr("{{methods["tuplefmt"](node_from)}}"),
             {%- endif -%}
         {%- endfor -%}))
     menu_region.add_exits({
-        region_format("Ship", "Landing Site", "Tallon Overworld"):
+        "Ship (Landing Site, Tallon Overworld)":
             "Start Game"
     })
