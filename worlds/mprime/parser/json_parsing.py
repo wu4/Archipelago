@@ -163,7 +163,7 @@ class RandovaniaData:
 
     def combine_bilinear_paths(self):
         from itertools import pairwise
-        from .node_visitor import get_unnecessary_connection_chains
+        from .connection_chains import get_unnecessary_connection_chains
 
         for (from_loc, to_loc), inbetween_locs in get_unnecessary_connection_chains(self, self.node_info).items():
             inbetween_locs.insert(0, from_loc)
