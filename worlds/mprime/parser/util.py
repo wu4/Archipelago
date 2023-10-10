@@ -26,8 +26,13 @@ def intersperse(val, sequence):
         yield item
         first = False
 
-def absolute_location_format(location: DataTypes.AbsoluteLocation) -> str:
-    return absolute_node_format(location["node"], location["area"], location["region"])
+LocationTuple = tuple[str, str, str]
+
+def as_location_tuple(location: DataTypes.AbsoluteLocation) -> LocationTuple:
+    return (location["node"], location["area"], location["region"])
+
+def absolute_location_tuple_format(location: LocationTuple) -> str:
+    return absolute_node_format(location[0], location[1], location[2])
 
 def absolute_node_format(node_name: str, area_name: str, region_name: str) -> str:
     return f"{node_name} ({area_name}, {region_name})"

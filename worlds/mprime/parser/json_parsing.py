@@ -4,10 +4,9 @@ from typing import TYPE_CHECKING, cast, Optional, Literal
 import orjson
 
 from .connection_requirements import parse_connection_requirements
-from .util import relative_to_file, absolute_node_format, absolute_location_format
+from .util import relative_to_file, absolute_node_format
 
-if TYPE_CHECKING:
-    from . import Types as DataTypes
+from . import Types as DataTypes
 
 
 def is_event_skippable(event_name: str) -> bool:
@@ -27,114 +26,121 @@ def load_region_json(header_filename: str, region_filename: str) -> DataTypes.Re
         Schema.Region.validate(json_data)
     return json_data
 
-def parse_dock_requirements(data: RandovaniaData, dock: DataTypes.DockWeaknessEntry) -> Optional[str]:
+def get_dock_requirements(dock: DataTypes.DockWeaknessEntry) -> DataTypes.RequirementData:
     lock = dock["lock"]
     if lock is None:
-        return parse_connection_requirements(data, dock["requirement"])
+        return dock["requirement"]
     else:
-        return parse_connection_requirements(data, {
+        return {
             "type": "and",
             "data": {
                 "comment": None,
                 "items": [dock["requirement"], lock["requirement"]]
             }
-        })
+        }
+        
+from .util import LocationTuple, absolute_location_tuple_format, as_location_tuple
+
+ConnectionsDict = dict[LocationTuple, DataTypes.RequirementData]
+NestedConnectionsDict = dict[LocationTuple, ConnectionsDict]
 
 @dataclass
 class NodeInfo:
-    has_location: Optional[Literal["pickup", "event", "items_every_room"]]
+    pickup: bool
+    items_every_room: bool
+    unskippable_event: bool
+    heal: bool
+
     event_name: Optional[str]
-    event_skippable: Optional[bool]
-    connections: list[tuple[str, DataTypes.RequirementData]]
-    dock_connection: Optional[tuple[str, str]]
     
-    def __init__(self, data: RandovaniaData, node: DataTypes.Node, area_name: str, region_name: str) -> None:
-        self.has_location = None
+    def __init__(self, data: RandovaniaData, node: DataTypes.Node) -> None:
+        self.pickup = False
+        self.items_every_room = False
+        self.unskippable_event = False
+        self.heal = False
+
         self.event_name = None
-        self.event_skippable = None
-        self.dock_connection = None
 
-        if node["node_type"] == "pickup" or node["node_type"] == "event":
-            if "default" in node["layers"]:
-                self.has_location = node["node_type"]
-            elif "items_every_room" in node["layers"]:
-                self.has_location = "items_every_room"
+        if node["node_type"] == "pickup":
+            self.pickup = True
 
-            if node["node_type"] == "event":
-                self.event_name = data.events_short_to_long[node["event_name"]]
-                self.event_skippable = is_event_skippable(self.event_name)
+            if "items_every_room" in node["layers"]:
+                self.items_every_room = True
 
-        if node["node_type"] == "dock":
-            rule = data.dock_requirements[node["default_dock_weakness"]]
-            if rule is not None:
-                self.dock_connection = (absolute_location_format(node["default_connection"]), f"dock_requirements['{node['default_dock_weakness']}']")
-        
-        if False:
-            for node_connection_name, requirements in node["connections"].items():
-                conn = create_connection_requirement(requirements)
-                if isinstance(conn, AndOrRequirement) and node_connection_name == "Pickup (Wavebuster)":
-                    # builder = AndOrBuilder()
-                    # a = builder.parse(conn)
-                    # print('\n'.join(a))
-                    a = AndOrParser(conn)
-                    a.parse()
-        
-        self.connections = [
-            (absolute_node_format(node_connection_name, area_name, region_name), requirements)
-            for node_connection_name, requirements in node["connections"].items()
-        ]
+        if node["heal"]:
+            self.heal = True
 
-class NodeVisitor:
-    visited: set[str]
-    nodes: dict[str, NodeInfo]
+        if node["node_type"] == "event":
+            self.event_name = data.events_short_to_long[node["event_name"]]
+            if not is_event_skippable(self.event_name):
+                self.unskippable_event = True
+                
+    def is_important(self) -> bool:
+        return self.pickup or self.unskippable_event or self.heal
 
-    def __init__(self, nodes: dict[str, NodeInfo]) -> None:
-        self.nodes = nodes
-        self.visited = set()
-        self.visit_connection("Ship (Landing Site, Tallon Overworld)", ())
-        print(self.visited)
-        
-    def visit_connection(self, node_name: str, linear_node_chain: tuple[str, ...]):
-        node = self.nodes[node_name]
-        linear_node_chain = (*linear_node_chain, node_name)
-        if len(node.connections) <= 2:
-            if len(linear_node_chain) > 2:
-                last_name = linear_node_chain[-2]
-                if last_name in list(map(lambda x: x[0], node.connections)):
-                    pass
-        else:
-            if len(linear_node_chain) > 1:
-                print(linear_node_chain)
-            linear_node_chain = ()
+def same_region_and_area(loc: LocationTuple, loc2: LocationTuple) -> bool:
+    return (loc[1], loc[2]) == (loc2[1], loc2[2])
 
-        for connection_name, _ in node.connections:
-            if connection_name in self.visited: continue
+class ConnectionData:
+    incoming: NestedConnectionsDict
+    outgoing: NestedConnectionsDict
 
-            self.visited.add(connection_name)
-            self.visit_connection(connection_name, linear_node_chain)
+    def __init__(self) -> None:
+        self.incoming = {}
+        self.outgoing = {}
 
+    def add(self, from_key: LocationTuple, to_key: LocationTuple, rule: DataTypes.RequirementData):
+        self.outgoing.setdefault(from_key, {})[to_key] = rule
+        self.incoming.setdefault(to_key, {})[from_key] = rule
+    
+    def pop(self, from_key: LocationTuple, to_key: LocationTuple):
+        ret = self.outgoing[from_key].pop(to_key)
+        # del self.incoming[to_key][from_key]
+        if len(self.outgoing[from_key]) == 0:
+            del self.outgoing[from_key]
+            # del self.incoming[to_key]
+        return ret
 
 class RandovaniaData:
     header: DataTypes.Header
-    regions: list[DataTypes.Region]
+    regions: dict[str, DataTypes.Region]
 
     items_short_to_long: dict[str, str]
     items: list[str]
     events_short_to_long: dict[str, str]
     tricks_short_to_long: dict[str, str]
-    dock_requirements: dict[str, Optional[str]]
-    rules: list[tuple[str, NodeInfo]]
+    dock_requirements: dict[str, DataTypes.RequirementData]
     template_lines: list[str]
     damage_resistances: dict[str, dict[str, float]]
-    
-    def __init__(self, header_filename: str) -> None:
-        self.header = load_header(header_filename)
-        self.regions = [
-            load_region_json(header_filename, region_filename)
-            for region_filename in self.header["regions"]
-            if region_filename not in ["Frigate Orpheon.json"]
-        ]
 
+    connections: ConnectionData
+
+    rules: dict[LocationTuple, dict[LocationTuple, str]]
+    
+    node_info: dict[LocationTuple, NodeInfo]
+
+    def init_nodes_and_connections(self):
+        self.connections = ConnectionData()
+        
+        self.node_info = {}
+
+        for region_name, region in self.regions.items():
+            for area_name, area in region["areas"].items():
+                for node_name, node in area["nodes"].items():
+                    from_key = (node_name, area_name, region_name)
+                    self.node_info[from_key] = NodeInfo(self, node)
+
+                    for to_node_name, rule in node["connections"].items():
+                        to_key = (to_node_name, area_name, region_name)
+                        self.connections.add(from_key, to_key, rule)
+
+                    if node["node_type"] == "dock":
+                        rule = self.dock_requirements[node["default_dock_weakness"]]
+                        if rule is not None:
+                            to_key = as_location_tuple(node["default_connection"])
+                            self.connections.add(from_key, to_key, rule)
+
+    def init_items_and_tricks(self):
         self.items_short_to_long = {
             short_name: item["long_name"]
             for short_name, item in self.header["resource_database"]["items"].items()
@@ -143,28 +149,46 @@ class RandovaniaData:
 
         self.items = list(self.items_short_to_long.values())
 
-        self.events_short_to_long = {
-          short_name: event["long_name"]
-          for short_name, event in self.header["resource_database"]["events"].items()
-        }
-
         self.tricks_short_to_long = {
             short: trick["long_name"]
             for short, trick in self.header["resource_database"]["tricks"].items()
         }
+    
+    def get_node(self, loc: LocationTuple) -> DataTypes.Node:
+        return self.regions[loc[2]]["areas"][loc[1]]["nodes"][loc[0]]
+
+    def __init__(self, header_filename: str) -> None:
+        self.header = load_header(header_filename)
+        self.regions = {}
+        for region_filename in self.header["regions"]:
+            if region_filename in ["Frigate Orpheon.json"]: continue
+            region = load_region_json(header_filename, region_filename)
+            self.regions[region["name"]] = region
 
         self.dock_requirements = {
-            dock_type: parse_dock_requirements(self, item)
+            dock_type: get_dock_requirements(item)
             for docks in self.header["dock_weakness_database"]["types"].values()
             for dock_type, item in docks["items"].items()
         }
 
-        self.rules = [
-            (absolute_node_format(node_name, area_name, region["name"]), NodeInfo(self, node, area_name, region["name"]))
-            for region in self.regions
-            for area_name, area in region["areas"].items()
-            for node_name, node in area["nodes"].items()
-        ]
+        self.events_short_to_long = {
+          short_name: event["long_name"]
+          for short_name, event in self.header["resource_database"]["events"].items()
+        }
+            
+        self.init_nodes_and_connections()
+
+        self.init_items_and_tricks()
+
+        self.combine_bilinear_paths()
+
+        self.rules = {
+            from_loc: {
+                to_loc: parse_connection_requirements(self, rule)
+                for to_loc, rule in to_locs.items()
+            }
+            for from_loc, to_locs in self.connections.outgoing.items()
+        }
         
         # def deep_search_template_calls(req: DataTypes.RequirementData) -> set[str]:
         #     accum: set[str] = set()
@@ -186,6 +210,7 @@ class RandovaniaData:
 
         # reqs: set[str] = set()
         # reqs.update(self.header["resource_database"]["requirement_template"].keys())
+
         #     
         header_templates = self.header["resource_database"]["requirement_template"]
 
@@ -231,3 +256,41 @@ class RandovaniaData:
             item["name"]: {i["name"]: i["multiplier"] for i in item["reductions"]}
             for item in self.header["resource_database"]["damage_reductions"]
         }
+
+    def combine_bilinear_paths(self):
+        from itertools import pairwise
+        from .node_visitor import get_unnecessary_connection_chains
+        
+        for (from_loc, to_loc), inbetween_locs in get_unnecessary_connection_chains(self, self.node_info).items():
+            inbetween_locs.insert(0, from_loc)
+            inbetween_locs.append(to_loc)
+            
+            forward_reqs: list[DataTypes.RequirementData] = []
+            backward_reqs: list[DataTypes.RequirementData] = []
+            for loc, next_loc in pairwise(inbetween_locs):
+                forward_reqs.append(self.connections.pop(loc, next_loc))
+                backward_reqs.append(self.connections.pop(next_loc, loc))
+
+            forward_req: DataTypes.Logic = {
+                "type": "and",
+                "data": {
+                    "comment": None,
+                    "items": forward_reqs
+                }
+            }
+            backward_req: DataTypes.Logic = {
+                "type": "and",
+                "data": {
+                    "comment": None,
+                    "items": backward_reqs
+                }
+            }
+
+            self.connections.add(from_loc, to_loc, forward_req)
+            self.connections.add(to_loc, from_loc, backward_req)
+
+            inbetween_locs.pop(0)
+            inbetween_locs.pop()
+
+            for rem in inbetween_locs:
+                del self.node_info[rem]

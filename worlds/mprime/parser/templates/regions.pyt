@@ -5,19 +5,11 @@ from .utils import region_format
 from typing import Callable
 
 locations = (
-    {%- for node_from, node_rules in rules %}
-        {%- if node_rules.has_location in ['pickup', 'pickup_every_room'] %}
-            "{{node_from}}",
-        {%- endif %}
-    {%- endfor %}
-)
-
-items_every_room_locations = (
-    {%- for node_from, node_rules in rules %}
-        {%- if node_rules.has_location in ['pickup_every_room'] %}
-            "{{node_from}}",
-        {%- endif %}
-    {%- endfor %}
+    {%- for node_from in data.rules.keys() -%}
+        {%- if data.node_info[node_from].pickup -%}
+            "{{tuplefmt(node_from)}}",
+        {%- endif -%}
+    {%- endfor -%}
 )
 
 def create_regions_and_events(self: World):
@@ -46,9 +38,18 @@ def create_regions_and_events(self: World):
     #     create_items_every_room_region = create_region
 
     menu_region = Region("Menu", player, multiworld)
-    multiworld.regions.extend((menu_region,{%- for node_from, node_rules in rules %}{%- if node_rules.has_location == "pickup" %}crl("{{node_from}}"),{%- elif node_rules.has_location == "event" %}cre("{{node_from}}", "{{node_rules.event_name}}", {{node_rules.event_skippable}}),{%- elif node_rules.has_location != "items_every_room" %}cr("{{node_from}}"),{%- endif %}{%- endfor %}))
+    multiworld.regions.extend((menu_region,
+        {%- for node_from, info in data.node_info.items() -%}
+            {%- if info.items_every_room -%}
+            {%- elif info.pickup -%}
+                crl("{{tuplefmt(node_from)}}"),
+            {%- elif info.event_name is not none -%}
+                cre("{{tuplefmt(node_from)}}","{{info.event_name}}",{{not info.unskippable_event}}),
+            {%- else -%}
+                cr("{{tuplefmt(node_from)}}"),
+            {%- endif -%}
+        {%- endfor -%}))
     menu_region.add_exits({
         region_format("Ship", "Landing Site", "Tallon Overworld"):
-        # region_format("Ship Save", "Exterior Docking Hangar", "Frigate Orpheon"):
             "Start Game"
     })

@@ -72,7 +72,7 @@ class RequirementRenderer:
         
     def render_dynamic_requirements(self, is_and: bool, *reqs: DataTypes.RequirementData) -> str:
         if len(reqs) == 0:
-            return f"lambda _:{is_and}"
+            return f"{is_and}"
         elif len(reqs) == 1:
             return self.render_dynamic_requirement(reqs[0])
         else:

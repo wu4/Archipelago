@@ -23,33 +23,20 @@ def set_rules(self: World):
     from . import logic as l
 
     t: ConnectionDict = {
-    {%- for template_name, requirements in templates.items() %}
+    {%- for template_name, requirements in data.templates.items() %}
         "{{template_name}}": {{requirements}},
     {%- endfor %}
     }
 
-    dock_requirements: ConnectionDict = {
-    {%- for dock_type, requirements in dock_requirements.items() %}
-    {%- if requirements is not none %}
-        "{{dock_type}}": {{requirements}},
-    {%- endif %}
-    {%- endfor %}
-    }
-
     add_exits_to_world(multiworld, p, (
-    {%- for node_from, node_rules in rules %}
-        {%- if node_rules.has_location != "items_every_room" %}
-            (
-            "{{node_from}}", (
-            {%- for node_to, rule in node_rules.connections %}
-                ("{{node_to}}", {{rule}}),
-            {%- endfor %}
-            {%- if node_rules.dock_connection is not none %}
-                ("{{node_rules.dock_connection[0]}}", {{node_rules.dock_connection[1]}}),
-            {%- endif %}
-            )
-            ),
-        {%- endif %}
-    {%- endfor %}
+    {%- for node_from, nodes in data.rules.items() -%}
+        (
+        "{{tuplefmt(node_from)}}", (
+        {%- for node_to, rule in nodes.items() -%}
+            ("{{tuplefmt(node_to)}}", {{rule}}),
+        {%- endfor -%}
+        )
+        ),
+    {%- endfor -%}
     ))
     print("rules end!")
