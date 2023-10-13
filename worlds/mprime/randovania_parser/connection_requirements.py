@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from .types.requirement import Requirement, Resource
-from .parser_utils import trick_name_gen, intersperse
+from .parser_utils import intersperse
+from .tricks import trick_name_gen
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -9,9 +10,8 @@ if TYPE_CHECKING:
 
 def parse_connection_requirements(data: RandovaniaData, req: Requirement) -> str | bool:
     """
-    Parses the requirements for a connection. Returns the appropriate logic as
-    an AST string, extracting static values (e.g. ones that rely on player
-    options) outside of the resulting code.
+    Parses the requirements for a connection. Returns the appropriate logic as a
+    lambda string, "flattening" redundant chunks in order to reduce output size.
     """
     flattened = _flatten_requirements(data, req)
     if type(flattened) == bool:
@@ -43,8 +43,6 @@ def _flatten_requirements( data: RandovaniaData,
                            req: Requirement,
                            seen: Optional[list[Requirement]] = None
                          ) -> Requirement | bool:
-
-    # return req
 
     if not (req["type"] == "and" or req["type"] == "or"):
         return req

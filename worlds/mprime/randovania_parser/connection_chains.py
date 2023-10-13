@@ -1,4 +1,5 @@
-from .json_parsing import RandovaniaData, LocationTuple, NodeInfo
+from .json_parsing import RandovaniaData, NodeInfo
+from .location import LocationTuple
 from typing import Optional
 
 def get_unnecessary_connection_chains(data: RandovaniaData, nodes: dict[LocationTuple, NodeInfo]) -> dict[tuple[LocationTuple, LocationTuple], list[LocationTuple]]:
@@ -34,12 +35,6 @@ class NodeVisitor:
 
             if self.is_host_node(loc, node):
                 self.host_nodes[loc] = self.get_connections(loc)
-
-        for loc, node in self.host_nodes.items():
-            if loc[0] == "Ship":
-                print(loc)
-                print("incoming: ", node[0])
-                print("outgoing: ", node[1])
 
         self.traverse_host(SHIP_LOC)
 

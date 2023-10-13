@@ -21,11 +21,14 @@ def resist_damage(state: CollectionState, player: int, damage: int, damage_type:
     multipliers = damage_resistances.get(damage_type)
     if multipliers is None: return damage
 
-    smallest_multiplier = min(map(lambda x: x[1], filter(lambda x: state.has(x[0], player), multipliers.items())))
-
-    for (suit_name, multiplier) in multipliers.items():
-        if not state.has(suit_name, player): continue
-        smallest_multiplier = min(smallest_multiplier, multiplier)
+    smallest_multiplier = min((
+        1.0,
+        *(
+            multiplier
+            for suit_name, multiplier in multipliers.items()
+            if state.has(suit_name, player)
+        )
+    ))
 
     return int(float(damage) * smallest_multiplier)
 

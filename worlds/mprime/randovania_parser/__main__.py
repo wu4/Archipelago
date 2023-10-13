@@ -1,7 +1,9 @@
 if __name__ == "__main__":
     import jinja2
 
-    from .parser_utils import trick_name_gen, parse_trick_desc, relative_to_file, absolute_location_tuple_format
+    from .parser_utils import relative_to_file
+    from .tricks import trick_name_gen, parse_trick_desc
+    from .location import location_tuple_format
     from .json_parsing import RandovaniaData
     from ..logic import generation_exports as logic_generation_exports
 
@@ -23,8 +25,8 @@ if __name__ == "__main__":
         },
         "rules": {
             "rules": {
-                absolute_location_tuple_format(k): {
-                    absolute_location_tuple_format(kk): vv
+                location_tuple_format(k): {
+                    location_tuple_format(kk): vv
                     for kk, vv in v.items()
                 } for k, v in data.rules.items()
             }.items(),
@@ -39,7 +41,7 @@ if __name__ == "__main__":
         },
         "regions": {
             "node_infos": {
-                absolute_location_tuple_format(node_from): info
+                location_tuple_format(node_from): info
                 for node_from, info in data.node_info.items()
             }.items()
         }
@@ -62,7 +64,7 @@ if __name__ == "__main__":
         f"damage_resistances={data.damage_resistances}",
         f"items={data.items}",
         f"""locations={[
-            absolute_location_tuple_format(node_from)
+            location_tuple_format(node_from)
             for node_from in data.rules.keys()
             if data.node_info[node_from].pickup
         ]}""",

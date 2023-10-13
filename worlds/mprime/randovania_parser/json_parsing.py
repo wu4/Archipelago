@@ -8,7 +8,8 @@ from .types.region import Region, Node
 from .types.requirement import Requirement, Logic
 
 from .connection_requirements import parse_connection_requirements
-from .parser_utils import relative_to_file, LocationTuple, as_location_tuple
+from .parser_utils import relative_to_file
+from .location import LocationTuple, as_location_tuple
 
 
 def is_event_skippable(event_name: str) -> bool:
@@ -72,9 +73,6 @@ class NodeInfo:
 
     def is_important(self) -> bool:
         return self.pickup or self.unskippable_event or self.heal
-
-def same_region_and_area(loc: LocationTuple, loc2: LocationTuple) -> bool:
-    return (loc[1], loc[2]) == (loc2[1], loc2[2])
 
 class ConnectionData:
     incoming: NestedConnectionsDict
@@ -167,10 +165,13 @@ class RandovaniaData:
             for item in self.header["resource_database"]["damage_reductions"]
         }
 
-    def get_node(self, loc: LocationTuple) -> Node:
-        return self.regions[loc[2]]["areas"][loc[1]]["nodes"][loc[0]]
-
     def combine_bilinear_paths(self):
+        """
+        Finds redundant chains of connections between bilinear Regions and
+        merges their logic together into one pair of Entrances each. Used to
+        reduce filesize of generated logic.
+        """
+
         from itertools import pairwise
         from .connection_chains import get_unnecessary_connection_chains
 

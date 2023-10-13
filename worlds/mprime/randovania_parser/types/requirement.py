@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import TypedDict, Literal, TypeAlias, Optional
 
 class Template(TypedDict):
@@ -7,7 +8,7 @@ class Template(TypedDict):
 
 class LogicData(TypedDict):
     comment: Optional[str]
-    items: list["Requirement"]
+    items: list[Requirement]
 
 
 class Logic(TypedDict):

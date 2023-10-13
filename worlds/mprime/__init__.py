@@ -8,6 +8,8 @@ from .options import MetroidPrimeOptions
 from .items import MetroidPrimeItem, MetroidPrimeEvent
 from .item_pool import generate_itempool
 
+from . import generated
+
 from . import logic
 
 class MetroidPrimeWorld(World):
@@ -23,9 +25,9 @@ class MetroidPrimeWorld(World):
     base_id = 0xbad_babe
 
     item_name_to_id = {name: id for
-                       id, name in enumerate(generated.items, base_id)}
+                    id, name in enumerate(generated.items, base_id)}
     location_name_to_id = {name: id for
-                           id, name in enumerate(generated.locations, base_id)}
+                        id, name in enumerate(generated.locations, base_id)}
 
     item_name_groups = {}
 
