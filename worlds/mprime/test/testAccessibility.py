@@ -1,7 +1,6 @@
 from . import MetroidPrimeTestBase
 # from pyvis.network import Network
 import typing
-from typing import Union, cast
 from BaseClasses import Region
 from test.TestBase import TestBase
 
@@ -60,7 +59,7 @@ class TestItemAccess(MetroidPrimeTestBase):
 
         regions = deque((root_region,))
 
-        def fmt(obj: Union[Entrance, Item, Location, Region]) -> str:
+        def fmt(obj: Entrance | Item | Location | Region) -> str:
             name = obj.name
             if isinstance(obj, Item):
                 name = multiworld.get_name_string_for_object(obj)

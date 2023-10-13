@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 from .generated import items, locations
 
 if TYPE_CHECKING:
-    from BaseClasses import MultiWorld
     from . import MetroidPrimeWorld
 
 def generate_itempool(world: "MetroidPrimeWorld", player: int) -> None:

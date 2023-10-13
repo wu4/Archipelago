@@ -1,5 +1,5 @@
 from BaseClasses import Entrance, Item, Location, LocationProgressType, MultiWorld, Region, CollectionState
-from typing import Optional, TypedDict, Union
+from typing import Optional, TypedDict
 
 class Highlight(TypedDict):
     spheres: list[tuple[CollectionState, list[Location]]]
@@ -152,7 +152,7 @@ def visualize_regions(root_region: Region, file_name: str, *,
         color = (128+(sphere_ind*40%128), 128+(sphere_ind*70%128), 128+((64+sphere_ind*25)%128))
         return f"#{color[0]:x}{color[1]:x}{color[2]:x}"
 
-    def fmt(obj: Union[Entrance, Item, Location, Region]) -> str:
+    def fmt(obj: Entrance | Item | Location | Region) -> str:
         name = obj.name
         if isinstance(obj, Item):
             name = multiworld.get_name_string_for_object(obj)

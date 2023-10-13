@@ -1,5 +1,4 @@
-from typing import TypedDict, Union, Literal, Optional, TypeAlias
-
+from typing import TypedDict, Literal, Optional, TypeAlias
 
 class Vector3(TypedDict):
     x: float
@@ -54,7 +53,7 @@ class Resource(TypedDict):
     data: ResourceData
 
 
-RequirementData: TypeAlias = Union[Template, Logic, Resource]
+RequirementData: TypeAlias = Template | Logic | Resource
 
 
 class EventNode(TypedDict):
@@ -124,8 +123,7 @@ class DockNode(TypedDict):
     override_default_lock_requirement: None
 
 
-Node: TypeAlias = Union[PickupNode, GenericNode, EventNode, DockNode]
-
+Node: TypeAlias = PickupNode | GenericNode | EventNode | DockNode
 
 class Area(TypedDict):
     default_node: str

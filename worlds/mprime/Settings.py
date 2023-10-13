@@ -1,5 +1,4 @@
 import settings
-from typing import Union
 
 class MetroidPrimeSettings(settings.Group):
     class RomFile(settings.UserFilePath):
@@ -18,4 +17,4 @@ class MetroidPrimeSettings(settings.Group):
         """
 
     rom_file: RomFile = RomFile(RomFile.copy_to)
-    rom_start: Union[RomStart, bool] = True
+    rom_start: RomStart | bool = True

@@ -136,17 +136,28 @@ class RandovaniaData:
         }
 
         self.init_nodes_and_connections()
-        self.init_items_and_tricks()
+        self.init_items()
+        self.init_tricks()
 
         self.combine_bilinear_paths()
 
-        self.rules = {
-            from_loc: {
-                to_loc: parse_connection_requirements(self, rule)
-                for to_loc, rule in to_locs.items()
-            }
-            for from_loc, to_locs in self.connections.outgoing.items()
-        }
+        self.rules = {}
+        for from_loc, to_locs in self.connections.outgoing.items():
+            d: dict[LocationTuple, str] = {}
+            is_empty: bool = True
+            for to_loc, rule_data in to_locs.items():
+                rule = parse_connection_requirements(self, rule_data)
+
+                if rule == False: continue
+
+                if rule == True:
+                    is_empty = False
+                    d[to_loc] = "None"
+                else:
+                    is_empty = False
+                    d[to_loc] = rule
+            if not is_empty:
+                self.rules[from_loc] = d
 
         self.templates = {
             template_name: parse_connection_requirements(self, reqs)
@@ -221,7 +232,7 @@ class RandovaniaData:
                             to_key = as_location_tuple(node["default_connection"])
                             self.connections.add(from_key, to_key, rule)
 
-    def init_items_and_tricks(self):
+    def init_items(self):
         self.items_short_to_long = {
             short_name: item["long_name"]
             for short_name, item in self.header["resource_database"]["items"].items()
@@ -230,6 +241,7 @@ class RandovaniaData:
 
         self.items = list(self.items_short_to_long.values())
 
+    def init_tricks(self):
         self.tricks_short_to_long = {
             short: trick["long_name"]
             for short, trick in self.header["resource_database"]["tricks"].items()

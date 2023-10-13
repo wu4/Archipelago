@@ -8,7 +8,7 @@ from . import generated
 # from .generated import items, locations
 # from .Extracted import set_rules, create_regions, items, locations
 from .options import MetroidPrimeOptions
-from .Items import MetroidPrimeItem, MetroidPrimeEvent
+from .items import MetroidPrimeItem, MetroidPrimeEvent
 from .item_pool import generate_itempool
 
 from . import logic
@@ -40,7 +40,12 @@ class MetroidPrimeWorld(World):
     set_rules = generated.rules.set_rules
 
     def generate_basic(self) -> None:
-        self.multiworld.completion_condition[self.player] = lambda state: state.has("Credits", self.player)
+        from BaseClasses import CollectionState
+        def completion_condition(state: CollectionState):
+            has_credits = state.has("Credits", self.player)
+            return has_credits
+
+        self.multiworld.completion_condition[self.player] = completion_condition
     
     def generate_early(self) -> None:
         # from Options import Range, Toggle, VerifyKeys
@@ -81,3 +86,18 @@ class MetroidPrimeWorld(World):
                 if item in self.multiworld.itempool:
                     self.multiworld.itempool.remove(item)
                     self.multiworld.itempool.append(self.create_item("Nothing"))
+
+    def modify_multidata(self, multidata: dict):
+        # Copied 1:1 from OoT
+
+        # Replace connect name
+        # multidata['connect_names'][self.connect_name] = multidata['connect_names'][self.multiworld.player_name[self.player]]
+
+        # Remove undesired items from start_inventory
+        # This is because we don't want them to show up in the autotracker,
+        # they just don't exist in-game.
+        for item_name in self.remove_from_start_inventory:
+            item_id = self.item_name_to_id.get(item_name, None)
+            if item_id is None:
+                continue
+            multidata["precollected_items"][self.player].remove(item_id)
