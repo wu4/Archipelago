@@ -1,12 +1,9 @@
 from typing import ClassVar
 from collections import Counter
 
-from BaseClasses import Item
 from worlds.AutoWorld import World
 from .settings import MetroidPrimeSettings
-from . import generated
-# from .generated import items, locations
-# from .Extracted import set_rules, create_regions, items, locations
+
 from .options import MetroidPrimeOptions
 from .items import MetroidPrimeItem, MetroidPrimeEvent
 from .item_pool import generate_itempool

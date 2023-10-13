@@ -1,7 +1,5 @@
 from BaseClasses import Item, ItemClassification
 
-from typing import Optional
-
 class MetroidPrimeItem(Item):
     game = "Metroid Prime"
     @staticmethod

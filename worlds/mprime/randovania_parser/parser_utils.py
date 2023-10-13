@@ -1,7 +1,7 @@
 from inflection import underscore
-from typing import Iterable, TypeVar, Callable, TYPE_CHECKING
-from . import Types as DataTypes
-
+from typing import Iterable, TypeVar, Callable
+from .types.shared import AbsoluteLocation
+import re
 
 def relative_to_file(file_path: str, rel_path: str) -> str:
     import os.path
@@ -18,6 +18,13 @@ def trick_name_gen(trick_name: str):
     else:
         return trick_name
 
+link_re = re.compile(r"<a href='([^']+)'>([^<]+)</a>")
+
+def parse_trick_desc(trick_desc: str) -> str:
+    links_replaced = link_re.sub(lambda match: f"{match.group(2)} ({match.group(1)})", trick_desc)
+    return links_replaced.replace("<br />", "\\n")
+
+
 def intersperse(val, sequence):
     first = True
     for item in sequence:
@@ -28,7 +35,7 @@ def intersperse(val, sequence):
 
 LocationTuple = tuple[str, str, str]
 
-def as_location_tuple(location: DataTypes.AbsoluteLocation) -> LocationTuple:
+def as_location_tuple(location: AbsoluteLocation) -> LocationTuple:
     return (location["node"], location["area"], location["region"])
 
 def absolute_location_tuple_format(location: LocationTuple) -> str:

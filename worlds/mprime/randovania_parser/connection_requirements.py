@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from . import Types as DataTypes
+from .types.requirement import Requirement, Resource
 from .parser_utils import trick_name_gen, intersperse
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .json_parsing import RandovaniaData
 
-def parse_connection_requirements(data: RandovaniaData, req: DataTypes.RequirementData) -> str | bool:
+def parse_connection_requirements(data: RandovaniaData, req: Requirement) -> str | bool:
     """
     Parses the requirements for a connection. Returns the appropriate logic as
     an AST string, extracting static values (e.g. ones that rely on player
@@ -21,7 +21,7 @@ def parse_connection_requirements(data: RandovaniaData, req: DataTypes.Requireme
 
         return f"lambda s:{rendered}"
 
-def req_eq(left: DataTypes.RequirementData, right: DataTypes.RequirementData) -> bool:
+def req_eq(left: Requirement, right: Requirement) -> bool:
     if (left["type"] == "and" and right["type"] == "and") or (left["type"] == "or" and right["type"] == "or"):
         try:
             return all(map(
@@ -34,15 +34,15 @@ def req_eq(left: DataTypes.RequirementData, right: DataTypes.RequirementData) ->
     else:
         return left["type"] == right["type"] and left["data"] == right["data"]
 
-def is_req_in(req: DataTypes.RequirementData, st: list[DataTypes.RequirementData]) -> bool:
-    """Test if a RequirementData is inside of a list. Ignores comments."""
+def is_req_in(req: Requirement, st: list[Requirement]) -> bool:
+    """Test if a Requirement is inside of a list. Ignores comments."""
     return any(map(lambda x: req_eq(req, x), st))
 
 from typing import Optional
 def _flatten_requirements( data: RandovaniaData,
-                           req: DataTypes.RequirementData,
-                           seen: Optional[list[DataTypes.RequirementData]] = None
-                         ) -> DataTypes.RequirementData | bool:
+                           req: Requirement,
+                           seen: Optional[list[Requirement]] = None
+                         ) -> Requirement | bool:
 
     # return req
 
@@ -53,7 +53,7 @@ def _flatten_requirements( data: RandovaniaData,
     is_or = req["type"] == "or"
     items = req["data"]["items"]
 
-    non_bool_items: list[DataTypes.RequirementData] = []
+    non_bool_items: list[Requirement] = []
     if seen is None:
         seen = []
     unique_items = []
@@ -94,7 +94,7 @@ def _flatten_requirements( data: RandovaniaData,
         }
 
 
-def _render_resource_requirement(data: RandovaniaData, req: DataTypes.Resource) -> str:
+def _render_resource_requirement(data: RandovaniaData, req: Resource) -> str:
     req_data = req["data"]
 
     if req_data["type"] == "items":
@@ -124,7 +124,7 @@ def _render_resource_requirement(data: RandovaniaData, req: DataTypes.Resource) 
     else:
         raise ValueError(f"unknown resource requirement: {req_data}")
     
-def _render_requirement(data: RandovaniaData, req: DataTypes.RequirementData) -> str:
+def _render_requirement(data: RandovaniaData, req: Requirement) -> str:
     if ( req["type"] == "and"
       or req["type"] == "or"):      return _render_requirements(data, req["type"] == "and", *req["data"]["items"])
     elif req["type"] == "template": return f"t['{req['data']}'](s)"
@@ -132,7 +132,7 @@ def _render_requirement(data: RandovaniaData, req: DataTypes.RequirementData) ->
 
     raise ValueError(f"unknown requirement type: {req['type']}")
     
-def _render_requirements(data: RandovaniaData, is_and: bool, *reqs: DataTypes.RequirementData) -> str:
+def _render_requirements(data: RandovaniaData, is_and: bool, *reqs: Requirement) -> str:
     if len(reqs) == 0:
         return f"{is_and}"
     elif len(reqs) == 1:

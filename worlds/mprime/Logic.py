@@ -1,11 +1,5 @@
 from BaseClasses import CollectionState
 
-try:
-    from .generated import damage_resistances
-except ImportError:
-    print("failed to import generated file. following through anyways beceause this file is necessary for generating said file")
-    damage_resistances = {}
-
 from typing import Callable
 
 generation_exports: dict[str, Callable] = {}
@@ -22,14 +16,16 @@ def has_energy(state: CollectionState, player: int, amount: int) -> bool:
     return total_energy > amount
 
 def resist_damage(state: CollectionState, player: int, damage: int, damage_type: str) -> int:
+    from .generated import damage_resistances
+
     multipliers = damage_resistances.get(damage_type)
     if multipliers is None: return damage
 
-    smallest_multiplier = 1.0
+    smallest_multiplier = min(map(lambda x: x[1], filter(lambda x: state.has(x[0], player), multipliers.items())))
 
     for (suit_name, multiplier) in multipliers.items():
-        if multiplier < smallest_multiplier and state.has(suit_name, player):
-            smallest_multiplier = multiplier
+        if not state.has(suit_name, player): continue
+        smallest_multiplier = min(smallest_multiplier, multiplier)
 
     return int(float(damage) * smallest_multiplier)
 

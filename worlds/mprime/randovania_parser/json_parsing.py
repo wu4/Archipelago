@@ -3,29 +3,27 @@ from dataclasses import dataclass
 from typing import Optional
 import orjson
 
+from .types.header import Header, DockWeaknessEntry
+from .types.region import Region, Node
+from .types.requirement import Requirement, Logic
+
 from .connection_requirements import parse_connection_requirements
 from .parser_utils import relative_to_file, LocationTuple, as_location_tuple
-from . import Types as DataTypes
 
 
 def is_event_skippable(event_name: str) -> bool:
     return event_name in ["Observatory Activated", "Control Tower Fight"]
 
-VALIDATE = False
-
-def load_header(header_filename: str) -> DataTypes.Header:
+def load_header(header_filename: str) -> Header:
     with open(header_filename, "r") as f:
         return orjson.loads(f.read())
 
-def load_region_json(header_filename: str, region_filename: str) -> DataTypes.Region:
+def load_region_json(header_filename: str, region_filename: str) -> Region:
     with open(relative_to_file(header_filename, region_filename), 'rt') as f:
         json_data = orjson.loads(f.read())
-    if VALIDATE:
-        from . import Schema
-        Schema.Region.validate(json_data)
     return json_data
 
-def get_dock_requirements(dock: DataTypes.DockWeaknessEntry) -> DataTypes.RequirementData:
+def get_dock_requirements(dock: DockWeaknessEntry) -> Requirement:
     lock = dock["lock"]
     if lock is None:
         return dock["requirement"]
@@ -38,7 +36,7 @@ def get_dock_requirements(dock: DataTypes.DockWeaknessEntry) -> DataTypes.Requir
             }
         }
 
-ConnectionsDict = dict[LocationTuple, DataTypes.RequirementData]
+ConnectionsDict = dict[LocationTuple, Requirement]
 NestedConnectionsDict = dict[LocationTuple, ConnectionsDict]
 
 @dataclass
@@ -50,7 +48,7 @@ class NodeInfo:
 
     event_name: Optional[str]
 
-    def __init__(self, data: RandovaniaData, node: DataTypes.Node) -> None:
+    def __init__(self, data: RandovaniaData, node: Node) -> None:
         self.pickup = False
         self.items_every_room = False
         self.unskippable_event = False
@@ -86,7 +84,7 @@ class ConnectionData:
         self.incoming = {}
         self.outgoing = {}
 
-    def add(self, from_key: LocationTuple, to_key: LocationTuple, rule: DataTypes.RequirementData):
+    def add(self, from_key: LocationTuple, to_key: LocationTuple, rule: Requirement):
         self.outgoing.setdefault(from_key, {})[to_key] = rule
         self.incoming.setdefault(to_key, {})[from_key] = rule
 
@@ -99,14 +97,14 @@ class ConnectionData:
         return ret
 
 class RandovaniaData:
-    header: DataTypes.Header
-    regions: dict[str, DataTypes.Region]
+    header: Header
+    regions: dict[str, Region]
 
     items_short_to_long: dict[str, str]
     items: list[str]
     events_short_to_long: dict[str, str]
     tricks_short_to_long: dict[str, str]
-    dock_requirements: dict[str, DataTypes.RequirementData]
+    dock_requirements: dict[str, Requirement]
     template_lines: list[str]
     damage_resistances: dict[str, dict[str, float]]
 
@@ -169,7 +167,7 @@ class RandovaniaData:
             for item in self.header["resource_database"]["damage_reductions"]
         }
 
-    def get_node(self, loc: LocationTuple) -> DataTypes.Node:
+    def get_node(self, loc: LocationTuple) -> Node:
         return self.regions[loc[2]]["areas"][loc[1]]["nodes"][loc[0]]
 
     def combine_bilinear_paths(self):
@@ -180,13 +178,13 @@ class RandovaniaData:
             inbetween_locs.insert(0, from_loc)
             inbetween_locs.append(to_loc)
 
-            forward_reqs: list[DataTypes.RequirementData] = []
-            backward_reqs: list[DataTypes.RequirementData] = []
+            forward_reqs: list[Requirement] = []
+            backward_reqs: list[Requirement] = []
             for loc, next_loc in pairwise(inbetween_locs):
                 forward_reqs.append(self.connections.pop(loc, next_loc))
                 backward_reqs.append(self.connections.pop(next_loc, loc))
 
-            forward_req: DataTypes.Logic = {
+            forward_req: Logic = {
                 "type": "and",
                 "data": {
                     "comment": None,
@@ -194,7 +192,7 @@ class RandovaniaData:
                 }
             }
 
-            backward_req: DataTypes.Logic = {
+            backward_req: Logic = {
                 "type": "and",
                 "data": {
                     "comment": None,
