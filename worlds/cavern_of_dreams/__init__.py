@@ -1,0 +1,1 @@
+from worlds.AutoWorld import WebWorld, World
