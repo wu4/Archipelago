@@ -1,51 +1,51 @@
+# pyright: reportUninitializedInstanceVariable=false
 from __future__ import annotations
 
 from BaseClasses import Region, Entrance, CollectionState, MultiWorld
-from AutoWorld import LogicMixin, AutoLogicRegister
+from ..AutoWorld import AutoLogicRegister
 
 import copy
 from collections import deque
-from typing import cast
+from typing import Literal, TypeAlias, override
 from . import CavernOfDreamsWorld
 
-throwables: dict[str, dict[str, str]] = {
-    "Apple": {
-        "Lostleaf Apple Tree": "LostleafLake/Start"
-    },
-    "Potion": {
-        
-    }
+Throwable: TypeAlias = Literal[
+    "Apple",
+    "Medicine",
+    "Bubble Conch",
+    "Sage's Gloves",
+    "Lady Opal's Head",
+    "Shelnert's Fish",
+    "Mr. Kerrington's Wings",
+]
+
+hardcoded_throwable_sources: dict[str, Throwable] = {
+    "LOSTLEAF_1": "Apple"
 }
 
 class CavernOfDreamsRegion(Region):
     game: str = "Cavern of Dreams"
 
-    def can_reach(self, state):
+    @override
+    def can_reach(self, state: CollectionState):
         if state.stale[self.player]:
             _update_reachable_regions(state, self.player)
 
         if self in _get_reachable_regions(state, "default", self.player):
             return True
 
-        for inner in throwables.values():
-            for event_name in inner.keys():
-                if not state.has(event_name, self.player): continue
-                if self not in _get_reachable_regions(state, event_name, self.player): continue
-                return True
+        for event_and_region_name in hardcoded_throwable_sources.keys():
+            if not state.has(event_and_region_name, self.player): continue
+            if self not in _get_reachable_regions(state, event_and_region_name, self.player): continue
+            return True
 
         return False
 
-def _set_carrying_throwable(state: CollectionState, player: int, throwable_type: str | None):
-    getattr(state, f"_cavernofdreams_carrying_throwable")[player] = throwable_type
-    
-def _get_carrying_throwable(state: CollectionState, player: int) -> str | None:
-    return getattr(state, f"_cavernofdreams_carrying_throwable")[player]
-
 def _get_reachable_regions(state: CollectionState, group_name: str, player: int) -> set[Region]:
-    return getattr(state, f"_cavernofdreams_{group_name}_reachable_regions")[player]
+    return state._cavernofdreams_reachable_regions[group_name][player]
 
 def _get_blocked_connections(state: CollectionState, group_name: str, player: int) -> set[Entrance]:
-    return getattr(state, f"_cavernofdreams_{group_name}_blocked_connections")[player]
+    return state._cavernofdreams_blocked_connections[group_name][player]
 
 def _update_reachable_regions(self: CollectionState, player: int):
     self.stale[player] = False
@@ -55,21 +55,17 @@ def _update_reachable_regions(self: CollectionState, player: int):
         start = self.multiworld.get_region('Menu', player)
     )
 
-    for throwable_type, inner in throwables.items():
-        _set_carrying_throwable(self, player, throwable_type)
+    for event_and_region_name, throwable in hardcoded_throwable_sources.items():
+        if not self.has(event_and_region_name, player): continue
 
-        for event_name, region_name in inner.items():
-            if not self.has(event_name, player): continue
+        self._cavernofdreams_carrying_throwable[player] = throwable
 
-            _update_region_accessibility(
-                self, event_name, player,
-                start = self.multiworld.get_region(region_name, player)
-            )
+        _update_region_accessibility(
+            self, event_and_region_name, player,
+            start = self.multiworld.get_region(event_and_region_name, player)
+        )
 
-    _set_carrying_throwable(self, player, None)
-
-def is_carrying(state: CollectionState, throwable_category: str | None, player: int) -> bool:
-    return _get_carrying_throwable(state, player) == throwable_category
+    self._cavernofdreams_carrying_throwable[player] = None
 
 def _update_region_accessibility(self: CollectionState, group_name: str, player: int, start: Region):
     rrp: set[Region] = _get_reachable_regions(self, group_name, player)
@@ -102,27 +98,41 @@ def _update_region_accessibility(self: CollectionState, group_name: str, player:
                     queue.append(new_entrance)
 
 class CavernOfDreamsCollectionState(metaclass=AutoLogicRegister):
+    _cavernofdreams_player_ids: tuple[int, ...]
+    _cavernofdreams_wearing_jester_boots: dict[int, bool]
+    _cavernofdreams_carrying_throwable: dict[int, Throwable | None]
+    _cavernofdreams_reachable_regions: dict[str, dict[int, set[Region]]]
+    _cavernofdreams_blocked_connections: dict[str, dict[int, set[Entrance]]]
+
     def init_mixin(self, parent: MultiWorld):
         cod_ids = parent.get_game_players(CavernOfDreamsWorld.game) + parent.get_game_groups(CavernOfDreamsWorld.game)
         self._cavernofdreams_player_ids = cod_ids
 
+        self._cavernofdreams_wearing_jester_boots = {player: False for player in cod_ids}
         self._cavernofdreams_carrying_throwable = {player: None for player in cod_ids}
-        for inner in throwables.values():
-            for event_name in inner.keys():
-                for attr_suffix in ["reachable_regions", "blocked_regions"]:
-                    region_data_attrname = f"_cavernofdreams_{event_name}_{attr_suffix}"
-                    setattr(self, region_data_attrname, {player: set() for player in cod_ids})
+        reachable = {}
+        blocked = {}
+        for event_and_region_name in hardcoded_throwable_sources.keys():
+            reachable[event_and_region_name] = {player: set() for player in cod_ids}
+            blocked[event_and_region_name] = {player: set() for player in cod_ids}
+        self._cavernofdreams_reachable_regions = reachable
+        self._cavernofdreams_blocked_connections = blocked
 
-    def copy_mixin(self, ret) -> CollectionState:
+    def copy_mixin(self, ret: CavernOfDreamsCollectionState) -> CavernOfDreamsCollectionState:
         cod_ids = self._cavernofdreams_player_ids
         ret._cavernofdreams_player_ids = cod_ids
+        ret._cavernofdreams_wearing_jester_boots = copy.copy(self._cavernofdreams_wearing_jester_boots)
 
         ret._cavernofdreams_carrying_throwable = copy.copy(self._cavernofdreams_carrying_throwable)
-        for inner in throwables.values():
-            for event_name in inner.keys():
-                for attr_suffix in ["reachable_regions", "blocked_regions"]:
-                    region_data_attrname = f"_cavernofdreams_{event_name}_{attr_suffix}"
-                    region_data = getattr(self, region_data_attrname)
-                    setattr(ret, region_data_attrname, {player: copy.copy(region_data[player]) for player in cod_ids})
+
+        reachable = {}
+        for event_and_region_name, by_player in self._cavernofdreams_reachable_regions.items():
+            reachable[event_and_region_name] = {player: copy.copy(by_player[player]) for player in cod_ids}
+        ret._cavernofdreams_reachable_regions = reachable
+
+        blocked = {}
+        for event_and_region_name, by_player in self._cavernofdreams_blocked_connections.items():
+            blocked[event_and_region_name] = {player: copy.copy(by_player[player]) for player in cod_ids}
+        ret._cavernofdreams_blocked_connections = blocked
 
         return ret
