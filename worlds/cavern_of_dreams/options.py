@@ -14,6 +14,47 @@ class Difficulty(Choice):
   option_intermediate = 1
   option_hard = 2
 
+class StartLocation(Choice):
+  """
+  Where Fynn should start his adventure.
+  """
+  default = 0
+
+  option_sun_cavern = 0
+  option_moon_cavern = 1
+
+  option_lostleaf_lobby = 2
+  option_armada_lobby = 3
+  option_prismic_lobby = 4
+  option_gallery_lobby = 5
+
+  option_lostleaf_lake = 6
+  option_lostleaf_church = 7
+  option_lostleaf_treehouse = 8
+  option_lostleaf_crypt = 9
+
+  option_armada_outside = 10
+  option_armada_inside = 11
+  option_armada_earth_drone = 12
+
+  option_prismic_outside = 13
+  option_prismic_palace = 14
+
+  option_gallery_foyer = 15
+  option_gallery_green = 16
+  option_gallery_red = 17
+  option_gallery_white = 18
+
+  option_wastes_of_eternity = 19
+  option_coils_of_agony = 20
+  option_pits_of_despair = 21
+
+class EntranceRando(Toggle):
+  """
+  Whether or not to randomize entrances.
+  """
+  default = 0
+
 class SuperBounce(Choice):
   """
   How to treat super bounce, a tech that enables gaining significant height using an aerial tailwhip while rolling.
@@ -156,9 +197,9 @@ class RollDisjoint(Toggle):
   """
   Consider use of roll disjoints in logic.
 
-  Roll disjoints involve canceling roll while after attempting to trigger
-  another animation, like a Tail Whip, in order to disjoint Fynn's hitbox to
-  touch loading zones through walls.
+  Roll disjoints involve canceling roll after attempting to trigger another
+  animation, like a Tail Whip, in order to disjoint Fynn's hitbox to touch
+  loading zones through walls.
   """
   default = 0
 
@@ -190,6 +231,9 @@ class AirTailJump(Toggle):
 @dataclass
 class CavernOfDreamsOptions(PerGameCommonOptions):
   difficulty: Difficulty
+
+  start_location: StartLocation
+  entrance_rando: EntranceRando
 
   shroomsanity: Shroomsanity
   cardsanity: Cardsanity

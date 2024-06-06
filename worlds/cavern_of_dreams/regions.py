@@ -1,4 +1,4 @@
-# pyright: reportUninitializedInstanceVariable=false
+# pyright: reportAttributeAccessIssue=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUninitializedInstanceVariable=false
 from __future__ import annotations
 
 from BaseClasses import Region, Entrance, CollectionState, MultiWorld
@@ -7,7 +7,7 @@ from ..AutoWorld import AutoLogicRegister
 import copy
 from collections import deque
 from typing import Literal, TypeAlias, override
-from . import CavernOfDreamsWorld
+from .world import CavernOfDreamsWorld
 
 Throwable: TypeAlias = Literal[
     "Apple",
