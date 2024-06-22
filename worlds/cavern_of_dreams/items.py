@@ -1,10 +1,11 @@
 from BaseClasses import Item, ItemClassification
+from .ap_generated import data
 
 class CavernOfDreamsItem(Item):
     game = "Cavern of Dreams"
     @staticmethod
     def get_classification(name: str) -> ItemClassification:
-        if name in ["Mushroom"]:
+        if name.startswith("Shroom"):
             return ItemClassification.filler
         else:
             return ItemClassification.progression
