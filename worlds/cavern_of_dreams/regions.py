@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from BaseClasses import Region, Entrance, CollectionState, MultiWorld
 from ..AutoWorld import AutoLogicRegister
+from .ap_generated.data import carryable_locations
 
 import copy
 from collections import deque
 from typing import Literal, TypeAlias, override
-from .world import CavernOfDreamsWorld
 
 TempItem: TypeAlias = Literal[
     "Apple",
@@ -20,10 +20,6 @@ TempItem: TypeAlias = Literal[
     "Jester Boots"
 ]
 
-hardcoded_throwable_sources: dict[str, TempItem] = {
-    "LOSTLEAF_1": "Apple"
-}
-
 
 class CavernOfDreamsRegion(Region):
     game: str = "Cavern of Dreams"
@@ -36,7 +32,7 @@ class CavernOfDreamsRegion(Region):
         if self in _get_reachable_regions(state, "default", self.player):
             return True
 
-        for event_and_region_name in hardcoded_throwable_sources.keys():
+        for event_and_region_name in carryable_locations.keys():
             if not state.has(event_and_region_name, self.player):
                 continue
             if self in _get_reachable_regions(state, event_and_region_name, self.player):
@@ -58,7 +54,6 @@ def _update_reachable_regions(self: CollectionState, player: int):
 
     changed: bool = True
 
-    # NOTE: this is very slow compared to standard generation
     while changed:
         changed = False
         changed |= _update_region_accessibility(
@@ -67,7 +62,7 @@ def _update_reachable_regions(self: CollectionState, player: int):
             start=self.multiworld.get_region('Menu', player)
         )
 
-        for event_and_region_name, temp_item in hardcoded_throwable_sources.items():
+        for event_and_region_name, temp_item in carryable_locations.items():
             if not self.has(event_and_region_name, player):
                 continue
 
@@ -150,14 +145,27 @@ class CavernOfDreamsCollectionState(metaclass=AutoLogicRegister):
         self._cavernofdreams_reachable_regions: dict[str, dict[int, set[Region]]] = {}
         self._cavernofdreams_blocked_connections: dict[str, dict[int, set[Entrance]]] = {}
 
+    def _cavernofdreams_has_shrooms_for(self, player: int, fella: str):
+        if fella == "Lake":
+            shrooms = 40
+        elif fella == "Monster":
+            shrooms = 80
+        elif fella == "Palace":
+            shrooms = 120
+        elif fella == "Gallery":
+            shrooms = 200
+        self.has_group("Shroom", player, shrooms)
+        return True
+
     def init_mixin(self, parent: MultiWorld):
+        from .world import CavernOfDreamsWorld
         cod_ids = parent.get_game_players(CavernOfDreamsWorld.game) + parent.get_game_groups(CavernOfDreamsWorld.game)
         self._cavernofdreams_player_ids = cod_ids
 
         self._cavernofdreams_carrying = {player: None for player in cod_ids}
         reachable = {}
         blocked = {}
-        for event_and_region_name in hardcoded_throwable_sources.keys():
+        for event_and_region_name in carryable_locations.keys():
             reachable[event_and_region_name] = {player: set() for player in cod_ids}
             blocked[event_and_region_name] = {player: set() for player in cod_ids}
         self._cavernofdreams_reachable_regions = reachable
