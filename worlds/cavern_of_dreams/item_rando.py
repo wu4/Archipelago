@@ -11,9 +11,8 @@ if TYPE_CHECKING:
 
 
 def _place_in_vanilla_location(self: "CavernOfDreamsWorld", item: "CavernOfDreamsItem"):
-    p = self.player
-    get_location = self.multiworld.get_location
-    get_location(vanilla_locations_by_name[item.name], p).place_locked_item(item)
+    vanilla_location = self.multiworld.get_location(vanilla_locations_by_name[item.name], self.player)
+    vanilla_location.place_locked_item(item)
 
 
 def _get_unshuffled_vanilla_abilities(self: "CavernOfDreamsWorld"):
@@ -97,7 +96,11 @@ def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_po
 
 
 def get_pre_fill_items(self: "CavernOfDreamsWorld"):
-    return list(map(self.create_item, _get_unshuffled_vanilla_abilities(self)))
+    return []
+    # unsure what the real purpose of this function is, it doesnt seem to
+    # affect any of the problems regardless of what i return
+    #
+    # return list(map(self.create_item, _get_sane_items(self)))
 
 
 def create_items(self: "CavernOfDreamsWorld"):
@@ -113,8 +116,10 @@ def create_items(self: "CavernOfDreamsWorld"):
     for item in map(self.create_item, sane_items - exclude):
         _place_in_vanilla_location(self, item)
 
-    exclude.update(unshuffled_vanilla_abilities)
     exclude.update(sane_items)
+
+    # unsure if this is any different from exclude.update(unshuffled_vanilla_abilities)
+    exclude.update(item.name for item in self.multiworld.precollected_items[self.player])
 
     for item in map(self.create_item, all_items_as_set - exclude):
         pending_item_pool.append(item)

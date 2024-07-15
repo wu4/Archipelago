@@ -10,7 +10,7 @@ class CavernOfDreamsItem(Item):
         if name in item_groups["Card"]:
             return ItemClassification.filler
         elif name in item_groups["Shroom"] or name in item_groups["Egg"]:
-            return ItemClassification.useful
+            return ItemClassification.progression_skip_balancing
         else:
             return ItemClassification.progression
 
