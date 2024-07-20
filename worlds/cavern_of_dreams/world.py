@@ -1,3 +1,6 @@
+from typing import override
+from Options import Accessibility
+import logging
 from worlds.AutoWorld import WebWorld, World
 from .options import CavernOfDreamsOptions
 from .ap_generated.data import all_items, all_locations, item_groups
@@ -5,6 +8,7 @@ from .ap_generated.regions import create_regions
 from .item_rando import create_items, get_pre_fill_items
 from .items import CavernOfDreamsItem, CavernOfDreamsEvent
 
+logger = logging.getLogger("Cavern of Dreams")
 
 class CavernOfDreamsWorld(World):
     """Cavern of Dreams"""
@@ -34,9 +38,17 @@ class CavernOfDreamsWorld(World):
     create_items = create_items
     get_pre_fill_items = get_pre_fill_items
 
+    @override
+    def generate_early(self) -> None:
+        if not (self.options.shroomsanity and self.options.eventsanity):
+            self.multiworld.accessibility[self.player].value = Accessibility.option_minimal
+            logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to shroomsanity and/or eventsanity settings")
+
+    @override
     def set_rules(self) -> None:
         self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
 
+    @override
     def create_item(self, name: str) -> CavernOfDreamsItem:
         return CavernOfDreamsItem(name, self.item_name_to_id[name], self.player)
 

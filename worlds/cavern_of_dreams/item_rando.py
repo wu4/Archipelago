@@ -110,10 +110,10 @@ def create_items(self: "CavernOfDreamsWorld"):
 
     pending_item_pool: list["Item"] = []
 
-    for item in map(self.create_item, unshuffled_vanilla_abilities - exclude):
+    for item in map(self.create_item, unshuffled_vanilla_abilities.difference(exclude)):
         self.multiworld.push_precollected(item)
 
-    for item in map(self.create_item, sane_items - exclude):
+    for item in map(self.create_item, sane_items.difference(exclude)):
         _place_in_vanilla_location(self, item)
 
     exclude.update(sane_items)
