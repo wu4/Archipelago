@@ -7,7 +7,7 @@ from .ap_generated.data import carryable_locations
 
 import copy
 from collections import deque
-from typing import TYPE_CHECKING, Literal, TypeAlias, override
+from typing import Literal, TypeAlias, override
 
 TempItem: TypeAlias = Literal[
     "Apple",
@@ -52,9 +52,9 @@ class CavernOfDreamsLocation(Location):
 
     @override
     def __init__(self, player: int, name: str = '', has_address: bool = False, parent: Optional[Region] = None):
-        # avoids circular imports
-        from .world import CavernOfDreamsWorld
         if has_address:
+            # avoids circular imports
+            from .world import CavernOfDreamsWorld
             address = CavernOfDreamsWorld.location_name_to_id[name]
         else:
             address = None
@@ -87,30 +87,6 @@ class CavernOfDreamsEntrance(Entrance):
         _set_carryable(state, self.player, None)
         return False
 
-def _get_current_start_region(state: CollectionState, player: int) -> Region:
-    csr = state._cavernofdreams_current_start_region[player]
-    if csr is None:
-        return state.multiworld.get_region("Menu", player)
-    return csr
-
-def _set_current_start_region(state: CollectionState, player: int, region: Region):
-    state._cavernofdreams_current_start_region[player] = region
-
-def _get_all_paths(state: CollectionState, player: int) -> dict[Region, dict[Region | Entrance, PathValue]]:
-    return state._cavernofdreams_paths[player]
-
-def _get_current_paths(state: CollectionState, player: int) -> dict[Region | Entrance, PathValue]:
-    return _get_all_paths(state, player)[_get_current_start_region(state, player)]
-
-def _add_entrance_path_node(entrance: Entrance, state: CollectionState):
-    current_paths = _get_current_paths(state, entrance.player)
-    if not entrance in current_paths:
-        current_paths[entrance] = (entrance.name, current_paths.get(entrance.parent_region, (entrance.parent_region.name, None)))
-
-def _add_region_path_node(region: Region, connection: Entrance, state: CollectionState):
-    current_paths = _get_current_paths(state, region.player)
-    current_paths[region] = (region.name, current_paths.get(connection, None))
-
 class CavernOfDreamsRegion(Region):
     game: str = "Cavern of Dreams"
     entrance_type = CavernOfDreamsEntrance
@@ -134,32 +110,12 @@ class CavernOfDreamsRegion(Region):
 
         return False
 
-
 class CavernOfDreamsCarryableRegion(CavernOfDreamsRegion):
     carryable: TempItem
 
     def __init__(self, name: str, player: int, multiworld: MultiWorld, carryable: TempItem, hint: str | None = None):
         super().__init__(name, player, multiworld, hint)
         self.carryable = carryable
-
-def _get_carryable(state: CollectionState, player: int) -> TempItem | None:
-    return state._cavernofdreams_carrying[player]
-
-def _set_carryable(state: CollectionState, player: int, temp_item: TempItem | None):
-    state._cavernofdreams_carrying[player] = temp_item
-
-
-def _get_reachable_carryables(state: CollectionState, player: int) -> list[str]:
-    return state._cavernofdreams_reachable_carryables[player]
-
-
-def _get_reachable_regions(state: CollectionState, carryable_region_name: str, player: int) -> set[Region]:
-    return state._cavernofdreams_reachable_regions[carryable_region_name][player]
-
-
-def _get_blocked_connections(state: CollectionState, carryable_region_name: str, player: int) -> set[Entrance]:
-    return state._cavernofdreams_blocked_connections[carryable_region_name][player]
-
 
 from itertools import zip_longest
 
@@ -284,6 +240,46 @@ def _update_region_accessibility(
     _set_current_start_region(state, player, prev_start_region)
     return changed
 
+# helper methods for path generation
+def _get_current_start_region(state: CollectionState, player: int) -> Region:
+    csr = state._cavernofdreams_current_start_region[player]
+    if csr is None:
+        return state.multiworld.get_region("Menu", player)
+    return csr
+
+def _set_current_start_region(state: CollectionState, player: int, region: Region):
+    state._cavernofdreams_current_start_region[player] = region
+
+def _get_all_paths(state: CollectionState, player: int) -> dict[Region, dict[Region | Entrance, PathValue]]:
+    return state._cavernofdreams_paths[player]
+
+def _get_current_paths(state: CollectionState, player: int) -> dict[Region | Entrance, PathValue]:
+    return _get_all_paths(state, player)[_get_current_start_region(state, player)]
+
+def _add_entrance_path_node(entrance: Entrance, state: CollectionState):
+    current_paths = _get_current_paths(state, entrance.player)
+    if not entrance in current_paths:
+        current_paths[entrance] = (entrance.name, current_paths.get(entrance.parent_region, (entrance.parent_region.name, None)))
+
+def _add_region_path_node(region: Region, connection: Entrance, state: CollectionState):
+    current_paths = _get_current_paths(state, region.player)
+    current_paths[region] = (region.name, current_paths.get(connection, None))
+
+# helper methods for carryables + overrides
+def _get_carryable(state: CollectionState, player: int) -> TempItem | None:
+    return state._cavernofdreams_carrying[player]
+
+def _set_carryable(state: CollectionState, player: int, temp_item: TempItem | None):
+    state._cavernofdreams_carrying[player] = temp_item
+
+def _get_reachable_carryables(state: CollectionState, player: int) -> list[str]:
+    return state._cavernofdreams_reachable_carryables[player]
+
+def _get_reachable_regions(state: CollectionState, carryable_region_name: str, player: int) -> set[Region]:
+    return state._cavernofdreams_reachable_regions[carryable_region_name][player]
+
+def _get_blocked_connections(state: CollectionState, carryable_region_name: str, player: int) -> set[Entrance]:
+    return state._cavernofdreams_blocked_connections[carryable_region_name][player]
 
 class CavernOfDreamsCollectionState(metaclass=AutoLogicRegister):
     # this is kludge to make typing work correctly
@@ -308,14 +304,15 @@ class CavernOfDreamsCollectionState(metaclass=AutoLogicRegister):
         elif fella == "Gallery":
             shrooms = 40 + 60 + 80 + 100
         else:
-            raise ValueError
+            raise ValueError(f"invalid fella {fella}")
         return self.has_group("Shroom", player, shrooms)
 
     def init_mixin(self, parent: MultiWorld):
         # avoids circular imports
         from .world import CavernOfDreamsWorld
+        game = CavernOfDreamsWorld.game
 
-        cod_ids = parent.get_game_players(CavernOfDreamsWorld.game) + parent.get_game_groups(CavernOfDreamsWorld.game)
+        cod_ids = parent.get_game_players(game) + parent.get_game_groups(game)
         self._cavernofdreams_player_ids = cod_ids
 
         self._cavernofdreams_carrying = {player: None for player in cod_ids}
