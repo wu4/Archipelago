@@ -43,6 +43,9 @@ def _get_excluded_items(self: "CavernOfDreamsWorld"):
     if self.options.exclude_flight:
         yield "Flight"
 
+    if self.options.exclude_wings:
+        yield "Wings"
+
     if self.options.split_tail:
         yield "Tail"
     else:
@@ -97,9 +100,6 @@ def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_po
 
 def get_pre_fill_items(self: "CavernOfDreamsWorld"):
     return []
-    # unsure what the real purpose of this function is, it doesnt seem to
-    # affect any of the problems regardless of what i return
-    #
     # return list(map(self.create_item, _get_sane_items(self)))
 
 
@@ -121,7 +121,7 @@ def create_items(self: "CavernOfDreamsWorld"):
     # unsure if this is any different from exclude.update(unshuffled_vanilla_abilities)
     exclude.update(item.name for item in self.multiworld.precollected_items[self.player])
 
-    for item in map(self.create_item, all_items_as_set - exclude):
+    for item in map(self.create_item, all_items_as_set.difference(exclude)):
         pending_item_pool.append(item)
 
     _match_pool_size_with_locations(self, pending_item_pool)

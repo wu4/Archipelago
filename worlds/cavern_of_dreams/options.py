@@ -107,8 +107,8 @@ class JesterBootsAnywhere(Toggle):
 
 
 class Eventsanity(Toggle):
-    """Shuffles events into the pool. For example, healing the Giant is a location with a check."""
-    default = 0
+    """Shuffles events into the pool. For example, healing the Giant is a location with a check. Accessibility is set to 'minimal' with this option disabled."""
+    default = 1
 
 
 class Gratitudesanity(Choice):
@@ -126,8 +126,8 @@ class Gratitudesanity(Choice):
 
 
 class Shroomsanity(Toggle):
-    """Shuffles all shrooms into the pool."""
-    default = 0
+    """Shuffles all shrooms into the pool. Accessibility is set to 'minimal' with this option disabled."""
+    default = 1
 
 
 class ShuffleAbilities(Toggle):
@@ -174,6 +174,11 @@ class IncludeDoubleJump(Toggle):
 class ExcludeFlight(Toggle):
     """Removes Flight from the pool. Highly recommended."""
     default = 1
+
+
+class ExcludeWings(Toggle):
+    """Removes Wings from the pool. For the brave and bold."""
+    default = 0
 
 
 class SplitTail(Toggle):
@@ -323,6 +328,7 @@ class CavernOfDreamsOptions(PerGameCommonOptions):
     shuffle_swim: ShuffleSwim
     include_double_jump: IncludeDoubleJump
     exclude_flight: ExcludeFlight
+    exclude_wings: ExcludeWings
     split_tail: SplitTail
 
     super_bounce: SuperBounce

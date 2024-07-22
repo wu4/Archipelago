@@ -1,4 +1,4 @@
-from typing import override
+from typing import TYPE_CHECKING, override
 from Options import Accessibility
 import logging
 from worlds.AutoWorld import WebWorld, World
@@ -7,6 +7,13 @@ from .ap_generated.data import all_items, all_locations, item_groups
 from .ap_generated.regions import create_regions
 from .item_rando import create_items, get_pre_fill_items
 from .items import CavernOfDreamsItem, CavernOfDreamsEvent
+
+if TYPE_CHECKING:
+    from BaseClasses import Region
+
+all_items_with_extras = all_items
+
+all_locations_with_extras = all_locations
 
 logger = logging.getLogger("Cavern of Dreams")
 
@@ -24,16 +31,23 @@ class CavernOfDreamsWorld(World):
     base_id = 0x1057_1eaf
 
     item_name_to_id = {name: id for
-                       id, name in enumerate(all_items, base_id)}
+                       id, name in enumerate(all_items_with_extras, base_id)}
     location_name_to_id = {name: id for
-                           id, name in enumerate(all_locations, base_id)}
+                           id, name in enumerate(all_locations_with_extras, base_id)}
 
     item_name_groups = item_groups
 
     # remove_from_start_inventory: list[str]
     # starting_items: Counter[str]
 
-    create_regions = create_regions
+    @override
+    def create_regions(self):
+        create_regions(self)
+        # visualize_regions(
+        #     self.get_region("Menu"),
+        #     "wew.puml",
+        #     show_other_regions = False
+        # )
 
     create_items = create_items
     get_pre_fill_items = get_pre_fill_items
@@ -59,3 +73,4 @@ class CavernOfDreamsWorld(World):
         return self.create_event("Nothing", True)
 
     # set_rules = generated.rules.set_rules
+

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from collections.abc import Iterator
 
-from BaseClasses import PathValue, Region, Entrance, CollectionState, MultiWorld
+from BaseClasses import Location, PathValue, Region, Entrance, CollectionState, MultiWorld
 from ..AutoWorld import AutoLogicRegister
 from .ap_generated.data import carryable_locations
 
@@ -22,30 +22,76 @@ TempItem: TypeAlias = Literal[
 ]
 
 
-# i guess instead of events i could check every region as it becomes accessible
-# and add it to a per-player list if its a region containing a carryable
-# and then as for internal events i could do the same thing probably
-# just throw them into a set as its respective region becomes accessible
-# that way id bypass the whole accessibility problem (for the most part at
-# least. anything that is wholly locked behind options would still need special
-# treatment)
-# to cover the special cases, i think ill parse the logic into DNF and check if
-# options are necessary in every case, then plop an appropriate if behind its
-# instantiation in the generated rules
+class CavernOfDreamsLocation(Location):
+    game = "Cavern of Dreams"
+
+    @override
+    def can_reach(self, state: CollectionState) -> bool:
+        # normally, we test access rule first for speed
+        # but we cant afford that luxury here
+        assert self.parent_region, "Can't reach location without region"
+
+        if not self.parent_region.can_reach(state):
+            return False
+
+        if self.access_rule(state):
+            return True
+
+        cars = _get_reachable_carryables(state, self.player)
+        for carryable_region_name in cars:
+            carryable_region = state.multiworld.get_region(carryable_region_name, self.player)
+            # assert isinstance(carryable_region, CavernOfDreamsCarryableRegion)
+            if self.parent_region in _get_reachable_regions(state, carryable_region_name, self.player):
+                _set_carryable(state, self.player, carryable_region.carryable)
+                if self.access_rule(state):
+                    _set_carryable(state, self.player, None)
+                    return True
+
+        _set_carryable(state, self.player, None)
+        return False
+
+    @override
+    def __init__(self, player: int, name: str = '', has_address: bool = False, parent: Optional[Region] = None):
+        # avoids circular imports
+        from .world import CavernOfDreamsWorld
+        if has_address:
+            address = CavernOfDreamsWorld.location_name_to_id[name]
+        else:
+            address = None
+        super().__init__(player, name, address, parent)
 
 class CavernOfDreamsEntrance(Entrance):
     @override
     def can_reach(self, state: CollectionState) -> bool:
         # assert self.parent_region is not None
-        if self.parent_region.can_reach(state) and self.access_rule(state):
+        if not self.parent_region.can_reach(state):
+            return False
+
+        if self.access_rule(state):
             if not self.hide_path:
                 _add_entrance_path_node(self, state)
             return True
 
+        cars = _get_reachable_carryables(state, self.player)
+        for carryable_region_name in cars:
+            carryable_region = state.multiworld.get_region(carryable_region_name, self.player)
+            # assert isinstance(carryable_region, CavernOfDreamsCarryableRegion)
+            if self.parent_region in _get_reachable_regions(state, carryable_region_name, self.player):
+                _set_carryable(state, self.player, carryable_region.carryable)
+                if self.access_rule(state):
+                    _set_carryable(state, self.player, None)
+                    if not self.hide_path:
+                        _add_entrance_path_node(self, state)
+                    return True
+
+        _set_carryable(state, self.player, None)
         return False
 
 def _get_current_start_region(state: CollectionState, player: int) -> Region:
-    return state._cavernofdreams_current_start_region[player]
+    csr = state._cavernofdreams_current_start_region[player]
+    if csr is None:
+        return state.multiworld.get_region("Menu", player)
+    return csr
 
 def _set_current_start_region(state: CollectionState, player: int, region: Region):
     state._cavernofdreams_current_start_region[player] = region
@@ -148,7 +194,6 @@ def _update_reachable_regions(state: CollectionState, player: int):
 
     while changed:
         changed = False
-        # print("At default, with no carryables")
         changed |= _update_region_accessibility(
             state, "default", player,
             None,
@@ -157,12 +202,10 @@ def _update_reachable_regions(state: CollectionState, player: int):
 
         for carryable_region_name in _get_reachable_carryables(state, player):
             carryable_region = state.multiworld.get_region(carryable_region_name, player)
-            assert isinstance(carryable_region, CavernOfDreamsCarryableRegion)
+            # assert isinstance(carryable_region, CavernOfDreamsCarryableRegion)
 
             temp_item = carryable_region.carryable
             _set_carryable(state, player, temp_item)
-
-            # print(f"At {carryable_region.name}, with carryable {carryable_region.carryable}")
 
             changed |= _update_region_accessibility(
                 state, carryable_region_name, player,
@@ -208,10 +251,10 @@ def _update_region_accessibility(
             blocked_connections.remove(connection)
             continue
 
+        assert new_region, f"tried to search through an Entrance \"{connection}\" with no Region"
         if not connection.can_reach(state):
             if temp_item is None:
                 continue
-            assert new_region, f"tried to search through an Entrance \"{connection}\" with no Region"
             # ok, thats fine. however, what if the player chooses to drop what they have?
             _set_carryable(state, player, None)
             can_reach_with_no_temp_item = connection.can_reach(state)
@@ -220,8 +263,6 @@ def _update_region_accessibility(
                 changed |= _update_region_accessibility(state, "default", player, None, new_region)
             _set_carryable(state, player, temp_item)
             continue
-        else:
-            assert new_region, f"tried to search through an Entrance \"{connection}\" with no Region"
 
         changed = True
         reachable_regions.add(new_region)
