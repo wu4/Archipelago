@@ -33,30 +33,16 @@ class CavernOfDreamsLocation(Location):
 
     valid_accessible_carryables: set[TempItem | None]
 
+    found: bool
+    auto_pickup: bool
+
     @override
     def can_reach(self, state: CollectionState) -> bool:
-        # normally, we test access rule first for speed
-        # but we cant afford that luxury here
-        assert self.parent_region, "Can't reach location without region"
-
-        if not self.parent_region.can_reach(state):
-            return False
-
-        if self.access_rule(state):
+        if CarryableTestResult.SUCCESS in check_any_carryable_access(self, state):
             return True
 
-        cars = _get_reachable_carryables(state, self.player)
-        for carryable_region_name in cars:
-            carryable_region = state.multiworld.get_region(carryable_region_name, self.player)
-            # assert isinstance(carryable_region, CavernOfDreamsCarryableRegion)
-            if self.parent_region in _get_reachable_regions(state, carryable_region_name, self.player):
-                _set_carryable(state, self.player, carryable_region.carryable)
-                if self.access_rule(state):
-                    _set_carryable(state, self.player, None)
-                    return True
-
-        _set_carryable(state, self.player, None)
-        return False
+        return (self.parent_region.can_reach(state) and
+                CarryableTestResult.SUCCESS in check_any_access(self, state))
 
     @override
     def __init__(self, player: int, name: str = '', has_address: bool = False, parent: Optional[Region] = None):
@@ -70,23 +56,25 @@ class CavernOfDreamsLocation(Location):
         self.carryable_access_rules = {}
         self.not_carryable_access_rules = {}
         self.valid_accessible_carryables = set()
+        self.found = False
+        self.auto_pickup = False
 
 class CarryableTestResult(IntFlag):
-    SUCCESS        = 0b0001
-    NEED_CARRYABLE = 0b0101
-    NEED_NONE      = 0b1001
-    FAIL           = 0b0010
+    SUCCESS        = 0b001
+    NEED_NONE      = 0b101
+    FAIL           = 0b010
 
-def access_check(node: CavernOfDreamsEntrance | CavernOfDreamsLocation, state: CollectionState) -> CarryableTestResult:
-    if node.access_rule(state):
-        return CarryableTestResult.SUCCESS
-
-    for access_rule in map(node.carryable_access_rules.__getitem__, filter(lambda x: x is not None, node.valid_accessible_carryables)):
+def check_any_carryable_access(
+    node: CavernOfDreamsEntrance | CavernOfDreamsLocation,
+    state: CollectionState
+) -> CarryableTestResult:
+    for access_rule in (node.carryable_access_rules[carryable] for carryable in node.valid_accessible_carryables if carryable is not None):
+    # for access_rule in map(node.carryable_access_rules.__getitem__, filter(lambda x: x is not None, node.valid_accessible_carryables)):
         # None check happens later
         if access_rule(state):
             # if not self.hide_path:
             #     _add_entrance_path_node(self, state)
-            return CarryableTestResult.NEED_CARRYABLE
+            return CarryableTestResult.SUCCESS
 
     region_carryables_len = len(node.parent_region.accessible_carryables)
     if region_carryables_len > 0:
@@ -95,14 +83,14 @@ def access_check(node: CavernOfDreamsEntrance | CavernOfDreamsLocation, state: C
         if region_carryables_len == 1:
             only_carryable = next(iter(node.parent_region.accessible_carryables))
             not_carryables = filter(only_carryable.__ne__, not_carryables)
-
-        for access_rule in map(node.not_carryable_access_rules.__getitem__, not_carryables):
+        # map(node.not_carryable_access_rules.__getitem__, not_carryables):
+        for access_rule in (node.not_carryable_access_rules[carryable] for carryable in not_carryables):
             if access_rule(state):
                 if only_carryable is None:
                     return CarryableTestResult.NEED_NONE
                 # if not self.hide_path:
                 #     _add_entrance_path_node(self, state)
-                return CarryableTestResult.NEED_CARRYABLE
+                return CarryableTestResult.SUCCESS
 
     if None in node.valid_accessible_carryables:
         if node.carryable_access_rules[None](state):
@@ -110,28 +98,40 @@ def access_check(node: CavernOfDreamsEntrance | CavernOfDreamsLocation, state: C
 
     return CarryableTestResult.FAIL
 
-def carryable_check(node: CavernOfDreamsEntrance | CavernOfDreamsLocation, state: CollectionState) -> CarryableTestResult:
+def check_any_access(
+    node: CavernOfDreamsEntrance | CavernOfDreamsLocation,
+    state: CollectionState
+) -> CarryableTestResult:
     if node.access_rule(state):
         return CarryableTestResult.SUCCESS
 
-    carryable = _get_carryable(state, node.player)
+    return check_any_carryable_access(node, state)
+
+def check_carryable_access(
+    node: CavernOfDreamsEntrance | CavernOfDreamsLocation,
+    carryable: TempItem | None,
+    state: CollectionState
+) -> CarryableTestResult:
+    if node.access_rule(state):
+        return CarryableTestResult.SUCCESS
 
     # e.g. not carrying jester boots
     for not_carryable, rule in node.not_carryable_access_rules.items():
         if carryable == not_carryable: continue
-        if rule(state): return CarryableTestResult.NEED_CARRYABLE
+        if rule(state): return CarryableTestResult.SUCCESS
 
     # requires carrying the current carryable
     if rule := node.carryable_access_rules.get(carryable):
-        if rule(state): return CarryableTestResult.NEED_CARRYABLE
+        if rule(state): return CarryableTestResult.SUCCESS
 
-    # can drop carryable
-    if rule := node.carryable_access_rules.get(None):
-        if rule(state): return CarryableTestResult.NEED_NONE
+    if carryable is not None:
+        # can drop carryable
+        if rule := node.carryable_access_rules.get(None):
+            if rule(state): return CarryableTestResult.NEED_NONE
 
-    # also can drop carryable
-    if rule := node.not_carryable_access_rules.get(carryable):
-        if rule(state): return CarryableTestResult.NEED_NONE
+        # also can drop carryable
+        if rule := node.not_carryable_access_rules.get(carryable):
+            if rule(state): return CarryableTestResult.NEED_NONE
 
     return CarryableTestResult.FAIL
 
@@ -145,6 +145,7 @@ class CavernOfDreamsEntrance(Entrance):
 
     valid_accessible_carryables: set[TempItem | None]
 
+    connected_region: CavernOfDreamsRegion
     parent_region: CavernOfDreamsRegion
 
     @override
@@ -153,46 +154,40 @@ class CavernOfDreamsEntrance(Entrance):
         self.carryable_access_rules = {}
         self.not_carryable_access_rules = {}
         self.valid_accessible_carryables = set()
-        self.valid_not_accessible_carryables = set()
-
-    def test_access(self, state: CollectionState) -> bool:
-        # check default rule for if the state does not care about carryables
-        if self.access_rule(state):
-            if not self.hide_path:
-                _add_entrance_path_node(self, state)
-            return True
-
-        for access_rule in map(self.carryable_access_rules.__getitem__, self.valid_accessible_carryables):
-            if access_rule(state):
-                if not self.hide_path:
-                    _add_entrance_path_node(self, state)
-                return True
-
-        vnac_len = len(self.valid_not_accessible_carryables)
-        if vnac_len > 0:
-            not_carryables = self.not_carryable_access_rules.keys()
-            if vnac_len == 1:
-                carryable = next(iter(self.valid_not_accessible_carryables))
-                not_carryables = filter(carryable.__ne__, not_carryables)
-
-            for access_rule in map(self.not_carryable_access_rules.__getitem__, not_carryables):
-                if access_rule(state):
-                    if not self.hide_path:
-                        _add_entrance_path_node(self, state)
-                    return True
-
-        return False
-
 
     @override
     def can_reach(self, state: CollectionState) -> bool:
         # assert self.parent_region is not None
-        return self.parent_region.can_reach(state) and self.test_access(state)
+        return self.parent_region.can_reach(state) and CarryableTestResult.SUCCESS in check_any_access(self, state)
 
 class CavernOfDreamsRegion(Region):
     game: str = "Cavern of Dreams"
     entrance_type = CavernOfDreamsEntrance
     accessible_carryables: set[TempItem | None]
+
+    locations: list[CavernOfDreamsLocation]
+    exits: list[CavernOfDreamsEntrance]
+
+    def find_locations(self):
+        for location in self.locations:
+            location.found = True
+
+    def add_accessible_carryable(self, temp_item: TempItem | None):
+        if temp_item in self.accessible_carryables: return
+        self.accessible_carryables.add(temp_item)
+
+        for node in [*self.locations, *self.exits]:
+            if temp_item in node.carryable_access_rules:
+                node.valid_accessible_carryables.add(temp_item)
+            else:
+                ncar_len = len(node.not_carryable_access_rules)
+                if ncar_len > 1 or (ncar_len == 1 and temp_item not in node.not_carryable_access_rules):
+                    node.valid_accessible_carryables.add(temp_item)
+
+    @override
+    def __init__(self, name: str, player: int, multiworld: MultiWorld, hint: Optional[str] = None):
+        super().__init__(name, player, multiworld, hint)
+        self.accessible_carryables = set()
 
     @override
     def can_reach(self, state: CollectionState):
@@ -249,41 +244,38 @@ def get_path(state: CollectionState, region: Region) -> list[tuple[str, str] | t
 def _update_reachable_regions(state: CollectionState, player: int):
     state.stale[player] = False
 
+    regions_to_propogate: set[CavernOfDreamsRegion] = set()
+
     changed: bool = True
+    menu_region = state.multiworld.get_region('Menu', player)
 
     while changed:
         changed = False
         changed |= _update_region_accessibility(
             state, "default", player,
             None,
-            start=state.multiworld.get_region('Menu', player)
+            start=menu_region
         )
 
         for carryable_region_name in _get_reachable_carryables(state, player):
             carryable_region = state.multiworld.get_region(carryable_region_name, player)
             # assert isinstance(carryable_region, CavernOfDreamsCarryableRegion)
 
-            temp_item = carryable_region.carryable
-            _set_carryable(state, player, temp_item)
-
             changed |= _update_region_accessibility(
                 state, carryable_region_name, player,
-                temp_item,
+                carryable_region.carryable,
                 start=carryable_region
             )
-
-        _set_carryable(state, player, None)
-
 
 def _update_region_accessibility(
     state: CollectionState,
     carryable_region_name: str,
     player: int,
     temp_item: TempItem | None,
-    start: Region
+    start: CavernOfDreamsRegion
 ) -> bool:
-    reachable_regions: set[Region] = _get_reachable_regions(state, carryable_region_name, player)
-    blocked_connections: set[Entrance] = _get_blocked_connections(state, carryable_region_name, player)
+    reachable_regions = _get_reachable_regions(state, carryable_region_name, player)
+    blocked_connections = _get_blocked_connections(state, carryable_region_name, player)
     queue = deque(blocked_connections)
 
     paths = _get_all_paths(state, player)
@@ -296,11 +288,11 @@ def _update_region_accessibility(
 
     # init on first call - this can't be done on construction since the regions don't exist yet
     if start not in reachable_regions:
+        start.add_accessible_carryable(temp_item)
+
         reachable_regions.add(start)
         blocked_connections.update(start.exits)
         queue.extend(start.exits)
-
-    _set_carryable(state, player, temp_item)
 
     # run BFS on all connections, and keep track of those blocked by missing items
     while queue:
@@ -311,23 +303,28 @@ def _update_region_accessibility(
             continue
 
         assert new_region, f"tried to search through an Entrance \"{connection}\" with no Region"
-        if not connection.can_reach(state):
-            if temp_item is None:
-                continue
-            # ok, thats fine. however, what if the player chooses to drop what they have?
-            _set_carryable(state, player, None)
-            can_reach_with_no_temp_item = connection.can_reach(state)
-            if can_reach_with_no_temp_item and new_region not in _get_reachable_regions(state, "default", player):
-                # print(f"dropped {temp_item} to make it from {connection.parent_region} to {new_region}")
+
+        result = check_carryable_access(connection, temp_item, state)
+
+        if CarryableTestResult.FAIL in result:
+            continue
+
+        if CarryableTestResult.NEED_NONE in result:
+            default_reachable_regions = _get_reachable_regions(state, "default", player)
+            if new_region not in default_reachable_regions:
                 changed |= _update_region_accessibility(state, "default", player, None, new_region)
-            _set_carryable(state, player, temp_item)
             continue
 
         changed = True
+
+        new_region.add_accessible_carryable(temp_item)
+        new_region.find_locations()
+
         reachable_regions.add(new_region)
         blocked_connections.remove(connection)
         blocked_connections.update(new_region.exits)
         queue.extend(new_region.exits)
+
         _add_region_path_node(new_region, connection, state)
 
         # Retry connections if the new region can unblock them
@@ -380,10 +377,10 @@ def _get_reachable_carryables(state: CollectionState, player: int) -> list[str]:
 
 # TODO: refactor everything to take Regions instead of strs
 
-def _get_reachable_regions(state: CollectionState, carryable_region_name: str, player: int) -> set[Region]:
+def _get_reachable_regions(state: CollectionState, carryable_region_name: str, player: int) -> set[CavernOfDreamsRegion]:
     return state._cavernofdreams_reachable_regions[carryable_region_name][player]
 
-def _get_blocked_connections(state: CollectionState, carryable_region_name: str, player: int) -> set[Entrance]:
+def _get_blocked_connections(state: CollectionState, carryable_region_name: str, player: int) -> set[CavernOfDreamsEntrance]:
     return state._cavernofdreams_blocked_connections[carryable_region_name][player]
 
 class CavernOfDreamsCollectionState(metaclass=AutoLogicRegister):
