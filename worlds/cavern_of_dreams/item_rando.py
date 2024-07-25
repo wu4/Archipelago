@@ -99,8 +99,7 @@ def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_po
 
 
 def get_pre_fill_items(self: "CavernOfDreamsWorld"):
-    return []
-    # return list(map(self.create_item, _get_sane_items(self)))
+    return [] # list(map(self.create_item, _get_sane_items(self)))
 
 
 def create_items(self: "CavernOfDreamsWorld"):

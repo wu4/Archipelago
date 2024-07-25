@@ -5,13 +5,13 @@ from worlds.AutoWorld import WebWorld, World
 from .options import CavernOfDreamsOptions
 from .ap_generated.data import all_items, all_locations, item_groups
 from .ap_generated.regions import create_regions
-from .item_rando import create_items, get_pre_fill_items
+from . import item_rando
 from .items import CavernOfDreamsItem, CavernOfDreamsEvent
 
 if TYPE_CHECKING:
     from BaseClasses import Region
 
-all_items_with_extras = all_items
+all_items_with_extras = all_items + ["Nothing"]
 
 all_locations_with_extras = all_locations
 
@@ -49,8 +49,12 @@ class CavernOfDreamsWorld(World):
         #     show_other_regions = False
         # )
 
-    create_items = create_items
-    get_pre_fill_items = get_pre_fill_items
+    create_items = item_rando.create_items
+    get_pre_fill_items = item_rando.get_pre_fill_items
+
+    @override
+    def post_fill(self) -> None:
+        return super().post_fill()
 
     @override
     def generate_early(self) -> None:
@@ -70,7 +74,7 @@ class CavernOfDreamsWorld(World):
         return CavernOfDreamsEvent(name, self.player, skippable)
 
     def create_nothing(self):
-        return self.create_event("Nothing", True)
+        return self.create_item("Nothing")
 
     # set_rules = generated.rules.set_rules
 

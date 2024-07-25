@@ -23,6 +23,8 @@ class CavernOfDreamsItem(Item):
             return ItemClassification.progression_skip_balancing
         elif name in non_progressive_shrooms:
             return ItemClassification.filler
+        elif name == "Nothing":
+            return ItemClassification.filler
         else:
             return ItemClassification.progression
 
