@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, override
+from collections.abc import Mapping
 from Options import Accessibility
 import logging
 from worlds.AutoWorld import WebWorld, World
@@ -55,6 +56,12 @@ class CavernOfDreamsWorld(World):
     @override
     def post_fill(self) -> None:
         return super().post_fill()
+
+    @override
+    def fill_slot_data(self):# -> Mapping[str, Any]:
+        return {
+            "splitGratitude": self.options.gratitudesanity == 2
+        }
 
     @override
     def generate_early(self) -> None:
