@@ -8,7 +8,7 @@ from .ap_generated.data import carryable_locations
 
 import copy
 from collections import Counter, deque
-from typing import Callable, Literal, TypeAlias, TypeVar, override
+from typing import Callable, Literal, TypeAlias, TypeVar
 
 TempItem: TypeAlias = Literal[
     "Apple",
@@ -37,7 +37,6 @@ class CavernOfDreamsLocation(Location):
 
     valid_accessible_carryables: set[TempItem | None]
 
-    @override
     def can_reach(self, state: CollectionState) -> bool:
         # global location_checks, location_earlyouts
         # location_checks[self] += 1
@@ -51,7 +50,6 @@ class CavernOfDreamsLocation(Location):
     def simple_can_reach(self, state: CollectionState) -> bool:
         return self.parent_region.can_reach(state)
 
-    @override
     def __init__(self, player: int, name: str = '', has_address: bool = False, parent: Optional[Region] = None):
         if has_address:
             # avoids circular imports
@@ -166,7 +164,6 @@ class CavernOfDreamsEntrance(Entrance):
     connected_region: CavernOfDreamsRegion
     parent_region: CavernOfDreamsRegion
 
-    @override
     def __init__(self, player: int, name: str = '', parent: Region = None):
         super().__init__(player, name, parent)
         self.carryable_access_rules = {}
@@ -176,7 +173,6 @@ class CavernOfDreamsEntrance(Entrance):
     def simple_can_reach(self, state: CollectionState) -> bool:
         return self.parent_region.can_reach(state)
 
-    @override
     def can_reach(self, state: CollectionState) -> bool:
         # assert self.parent_region is not None
         return self.parent_region.can_reach(state) and CarryableTestResult.SUCCESS in check_any_access(self, state)
@@ -195,7 +191,6 @@ class CavernOfDreamsRegion(Region):
     locations: list[CavernOfDreamsLocation]
     exits: list[CavernOfDreamsEntrance]
 
-    @override
     def can_reach(self, state: CollectionState):
         if state.stale[self.player]:
             _update_reachable_regions(state, self.player)

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 from collections.abc import Mapping
 from Options import Accessibility
 import logging
@@ -41,7 +41,6 @@ class CavernOfDreamsWorld(World):
     # remove_from_start_inventory: list[str]
     # starting_items: Counter[str]
 
-    @override
     def create_regions(self):
         create_regions(self)
         # visualize_regions(
@@ -53,27 +52,22 @@ class CavernOfDreamsWorld(World):
     create_items = item_rando.create_items
     get_pre_fill_items = item_rando.get_pre_fill_items
 
-    @override
     def post_fill(self) -> None:
         return super().post_fill()
 
-    @override
     def fill_slot_data(self):# -> Mapping[str, Any]:
         return {
             "splitGratitude": self.options.gratitudesanity == 2
         }
 
-    @override
     def generate_early(self) -> None:
         if not (self.options.shroomsanity and self.options.eventsanity):
             self.multiworld.accessibility[self.player].value = Accessibility.option_minimal
             logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to shroomsanity and/or eventsanity settings")
 
-    @override
     def set_rules(self) -> None:
         self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
 
-    @override
     def create_item(self, name: str) -> CavernOfDreamsItem:
         return CavernOfDreamsItem(name, self.item_name_to_id[name], self.player)
 
