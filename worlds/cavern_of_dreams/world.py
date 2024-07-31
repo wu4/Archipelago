@@ -1,5 +1,5 @@
-from typing import TYPE_CHECKING
-from collections.abc import Mapping
+from typing import TYPE_CHECKING, TextIO
+from collections.abc import Iterator
 from Options import Accessibility
 import logging
 from worlds.AutoWorld import WebWorld, World
@@ -8,9 +8,10 @@ from .ap_generated.data import all_items, all_locations, item_groups
 from .ap_generated.regions import create_regions
 from . import item_rando
 from .items import CavernOfDreamsItem, CavernOfDreamsEvent
+from .regions import get_all_paths
 
 if TYPE_CHECKING:
-    from BaseClasses import Region
+    from BaseClasses import Region, CollectionState, PathValue
 
 all_items_with_extras = all_items + ["Nothing"]
 
@@ -76,6 +77,32 @@ class CavernOfDreamsWorld(World):
 
     def create_nothing(self):
         return self.create_item("Nothing")
+
+    @staticmethod
+    def get_spoiler_path(state: "CollectionState", region: "Region") -> list[tuple[str, str] | tuple[str, None]]:
+        from itertools import zip_longest
+
+        def flist_to_iter(path_value: "PathValue | None") -> Iterator[str]:
+            while path_value:
+                region_or_entrance, path_value = path_value
+                yield region_or_entrance
+
+        all_paths = get_all_paths(state, region.player)
+        # menu = state.multiworld.get_region('Menu', player)
+        result = next(filter(lambda r: region in r[1], all_paths.items()), None)
+        if result is None:
+            raise KeyError(f"unable to find valid path for {region}")
+        start, paths = result
+
+        reversed_path_as_flist: PathValue = paths.get(region, (str(region), None))
+        string_path_flat = reversed(list(map(str, flist_to_iter(reversed_path_as_flist))))
+        # Now we combine the flat string list into (region, exit) pairs
+        pathsiter = iter(string_path_flat)
+        pathpairs = zip_longest(pathsiter, pathsiter)
+        ret = list(pathpairs)
+        if start.name != "Menu":
+            ret = CavernOfDreamsWorld.get_spoiler_path(state, start) + ret
+        return ret
 
     # set_rules = generated.rules.set_rules
 

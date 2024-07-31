@@ -8,13 +8,13 @@ import time
 from random import Random
 from dataclasses import make_dataclass
 from typing import (Any, Callable, ClassVar, Dict, FrozenSet, List, Mapping, Optional, Set, TextIO, Tuple,
-                    TYPE_CHECKING, Type, Union)
+                    TYPE_CHECKING, Type, Union, Iterator)
 
 from Options import item_and_loc_options, OptionGroup, PerGameCommonOptions
 from BaseClasses import CollectionState
 
 if TYPE_CHECKING:
-    from BaseClasses import MultiWorld, Item, Location, Tutorial, Region, Entrance
+    from BaseClasses import MultiWorld, Item, Location, Tutorial, Region, Entrance, PathValue
     from . import GamesPackage
     from settings import Group
 
@@ -426,6 +426,22 @@ class World(metaclass=AutoWorldRegister):
     def modify_multidata(self, multidata: Dict[str, Any]) -> None:  # TODO: TypedDict for multidata?
         """For deeper modification of server multidata."""
         pass
+
+    @staticmethod
+    def get_spoiler_path(state: CollectionState, region: Region) -> list[tuple[str, str] | tuple[str, None]]:
+        from itertools import zip_longest
+
+        def flist_to_iter(path_value: Optional[PathValue]) -> Iterator[str]:
+            while path_value:
+                region_or_entrance, path_value = path_value
+                yield region_or_entrance
+
+        reversed_path_as_flist: PathValue = state.path.get(region, (str(region), None))
+        string_path_flat = reversed(list(map(str, flist_to_iter(reversed_path_as_flist))))
+        # Now we combine the flat string list into (region, exit) pairs
+        pathsiter = iter(string_path_flat)
+        pathpairs = zip_longest(pathsiter, pathsiter)
+        return list(pathpairs)
 
     # Spoiler writing is optional, these may not get called.
     def write_spoiler_header(self, spoiler_handle: TextIO) -> None:

@@ -1324,27 +1324,15 @@ class Spoiler:
             multiworld.push_precollected(item)
 
     def create_paths(self, state: CollectionState, collection_spheres: List[Set[Location]]) -> None:
-        from itertools import zip_longest
         multiworld = self.multiworld
 
-        def flist_to_iter(path_value: Optional[PathValue]) -> Iterator[str]:
-            while path_value:
-                region_or_entrance, path_value = path_value
-                yield region_or_entrance
-
-        def get_path(state: CollectionState, region: Region) -> List[Union[Tuple[str, str], Tuple[str, None]]]:
-            reversed_path_as_flist: PathValue = state.path.get(region, (str(region), None))
-            string_path_flat = reversed(list(map(str, flist_to_iter(reversed_path_as_flist))))
-            # Now we combine the flat string list into (region, exit) pairs
-            pathsiter = iter(string_path_flat)
-            pathpairs = zip_longest(pathsiter, pathsiter)
-            return list(pathpairs)
-
         self.paths = {}
-        topology_worlds = (player for player in multiworld.player_ids if multiworld.worlds[player].topology_present)
-        for player in topology_worlds:
+        topology_worlds = (world for world in map(multiworld.worlds.__getitem__, multiworld.player_ids) if world.topology_present)
+        for world in topology_worlds:
+            player = world.player
+            get_spoiler_path = type(world).get_spoiler_path
             self.paths.update(
-                {str(location): get_path(state, location.parent_region)
+                {str(location): get_spoiler_path(state, location.parent_region)
                  for sphere in collection_spheres for location in sphere
                  if location.player == player})
             if player in multiworld.get_game_players("A Link to the Past"):

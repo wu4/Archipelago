@@ -35,8 +35,6 @@ class CavernOfDreamsLocation(Location):
 
     parent_region: CavernOfDreamsRegion
 
-    valid_accessible_carryables: set[TempItem | None]
-
     def can_reach(self, state: CollectionState) -> bool:
         # global location_checks, location_earlyouts
         # location_checks[self] += 1
@@ -60,7 +58,6 @@ class CavernOfDreamsLocation(Location):
         super().__init__(player, name, address, parent)
         self.carryable_access_rules = {}
         self.not_carryable_access_rules = {}
-        self.valid_accessible_carryables = set()
 
 class CarryableTestResult(IntFlag):
     SUCCESS        = 0b001
@@ -159,7 +156,6 @@ class CavernOfDreamsEntrance(Entrance):
     carryable_access_rules: CarryableAccessRules
     not_carryable_access_rules: CarryableAccessRules
 
-    valid_accessible_carryables: set[TempItem | None]
 
     connected_region: CavernOfDreamsRegion
     parent_region: CavernOfDreamsRegion
@@ -168,7 +164,6 @@ class CavernOfDreamsEntrance(Entrance):
         super().__init__(player, name, parent)
         self.carryable_access_rules = {}
         self.not_carryable_access_rules = {}
-        self.valid_accessible_carryables = set()
 
     def simple_can_reach(self, state: CollectionState) -> bool:
         return self.parent_region.can_reach(state)
@@ -210,38 +205,10 @@ class CavernOfDreamsCarryableRegion(CavernOfDreamsRegion):
         super().__init__(name, player, multiworld, hint)
         self.carryable = carryable
 
-from itertools import zip_longest
-
-def flist_to_iter(path_value: PathValue | None) -> Iterator[str]:
-    while path_value:
-        region_or_entrance, path_value = path_value
-        yield region_or_entrance
-
-def get_path(state: CollectionState, region: Region) -> list[tuple[str, str] | tuple[str, None]]:
-    player = region.player
-    all_paths = _get_all_paths(state, player)
-    # menu = state.multiworld.get_region('Menu', player)
-    result = next(filter(lambda r: region in r[1], all_paths.items()), None)
-    if result is None:
-        raise KeyError(f"unable to find valid path for {region}")
-    start, paths = result
-
-    reversed_path_as_flist: PathValue = paths.get(region, (str(region), None))
-    string_path_flat = reversed(list(map(str, flist_to_iter(reversed_path_as_flist))))
-    # Now we combine the flat string list into (region, exit) pairs
-    pathsiter = iter(string_path_flat)
-    pathpairs = zip_longest(pathsiter, pathsiter)
-    ret = list(pathpairs)
-    if start.name != "Menu":
-        ret = get_path(state, start) + ret
-    return ret
-
 def _update_reachable_regions(state: CollectionState, player: int):
     # global region_propogations
     # region_propogations += 1
     state.stale[player] = False
-
-    regions_to_propogate: set[CavernOfDreamsRegion] = set()
 
     changed: bool = True
     menu_region = state.multiworld.get_region('Menu', player)
@@ -275,7 +242,7 @@ def _update_region_accessibility(
     blocked_connections = _get_blocked_connections(state, carryable_region_name, player)
     queue = deque(blocked_connections)
 
-    paths = _get_all_paths(state, player)
+    paths = get_all_paths(state, player)
     if start not in paths:
         paths[start] = {}
     prev_start_region = _get_current_start_region(state, player)
@@ -306,8 +273,11 @@ def _update_region_accessibility(
         if CarryableTestResult.FAIL in result:
             continue
 
+        _add_entrance_path_node(connection, state, _get_current_paths(state, player))
+
         if CarryableTestResult.NEED_NONE in result:
             if new_region not in _get_reachable_regions(state, "default", player):
+                # _add_entrance_path_node(connection, state, get_all_paths(state, player).setdefault(new_region, {}))
                 changed |= _update_region_accessibility(state, "default", player, None, new_region)
             continue
 
@@ -343,16 +313,15 @@ def _get_current_start_region(state: CollectionState, player: int) -> Region:
 def _set_current_start_region(state: CollectionState, player: int, region: Region):
     state._cavernofdreams_current_start_region[player] = region
 
-def _get_all_paths(state: CollectionState, player: int) -> dict[Region, dict[Region | Entrance, PathValue]]:
+def get_all_paths(state: CollectionState, player: int) -> dict[Region, dict[Region | Entrance, PathValue]]:
     return state._cavernofdreams_paths[player]
 
 def _get_current_paths(state: CollectionState, player: int) -> dict[Region | Entrance, PathValue]:
-    return _get_all_paths(state, player)[_get_current_start_region(state, player)]
+    return get_all_paths(state, player)[_get_current_start_region(state, player)]
 
-def _add_entrance_path_node(entrance: Entrance, state: CollectionState):
-    current_paths = _get_current_paths(state, entrance.player)
-    if not entrance in current_paths:
-        current_paths[entrance] = (entrance.name, current_paths.get(entrance.parent_region, (entrance.parent_region.name, None)))
+def _add_entrance_path_node(entrance: Entrance, state: CollectionState, paths: dict[Region | Entrance, PathValue]):
+    if not entrance in paths:
+        paths[entrance] = (entrance.name, paths.get(entrance.parent_region, (entrance.parent_region.name, None)))
 
 def _add_region_path_node(region: Region, connection: Entrance, state: CollectionState):
     current_paths = _get_current_paths(state, region.player)
