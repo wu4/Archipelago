@@ -1,6 +1,5 @@
 from random import shuffle
 
-
 def randomize_entrances(
     entrances: list[tuple[str, str]]
 ) -> list[tuple[str, str]]:

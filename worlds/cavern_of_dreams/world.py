@@ -1,17 +1,19 @@
-from typing import TYPE_CHECKING, TextIO
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from Options import Accessibility
 import logging
 from worlds.AutoWorld import WebWorld, World
-from .options import CavernOfDreamsOptions
+from .carryables import CavernOfDreamsCarryable
+from .state_patches import add_carryable_source, add_region_entries, remove_carryable_source
+from .options import CavernOfDreamsOptions, SplitTail
 from .ap_generated.data import all_items, all_locations, item_groups
 from .ap_generated.regions import create_regions
 from . import item_rando
 from .items import CavernOfDreamsItem, CavernOfDreamsEvent
 from .regions import get_all_paths
 
+from typing import TYPE_CHECKING, TypeVar
 if TYPE_CHECKING:
-    from BaseClasses import Region, CollectionState, PathValue
+    from BaseClasses import Region, CollectionState, PathValue, Item, Location, MultiWorld
 
 all_items_with_extras = all_items + ["Nothing"]
 
@@ -19,11 +21,22 @@ all_locations_with_extras = all_locations
 
 logger = logging.getLogger("Cavern of Dreams")
 
+T = TypeVar("T")
+
+def unique_only(ts: Iterable[T]) -> Sequence[T]:
+  ret: list[T] = []
+  for t in ts:
+    if not t in ret:
+      ret.append(t)
+  return ret
+
 class CavernOfDreamsWorld(World):
     """Cavern of Dreams"""
 
     options_dataclass = CavernOfDreamsOptions
     options: CavernOfDreamsOptions
+
+    carryable_locations: list["Location"]
 
     game = "Cavern of Dreams"
     # settings: ClassVar[MetroidPrimeSettings]
@@ -33,7 +46,7 @@ class CavernOfDreamsWorld(World):
     base_id = 0x1057_1eaf
 
     item_name_to_id = {name: id for
-                       id, name in enumerate(all_items_with_extras, base_id)}
+                       id, name in enumerate(unique_only(all_items_with_extras), base_id)}
     location_name_to_id = {name: id for
                            id, name in enumerate(all_locations_with_extras, base_id)}
 
@@ -42,8 +55,48 @@ class CavernOfDreamsWorld(World):
     # remove_from_start_inventory: list[str]
     # starting_items: Counter[str]
 
+    def __init__(self, multiworld: "MultiWorld", player: int):
+        self.carryable_locations = []
+        super().__init__(multiworld, player)
+
+    def remove(self, state: "CollectionState", item: "Item") -> bool:
+        name = self.collect_item(state, item)
+        if not name: return False
+
+        if isinstance(item, CavernOfDreamsCarryable):
+            remove_carryable_source(state, self.player, item.location.parent_region, item.carryable)
+            return True
+
+        if item.name in item_groups["Egg"]:
+            state.prog_items[self.player]["Egg"] -= 1
+        elif item.name in item_groups["Shroom"]:
+            state.prog_items[self.player]["Shroom"] -= 1
+
+        state.prog_items[self.player][name] -= 1
+
+        return True
+
+    def collect(self, state: "CollectionState", item: "Item") -> bool:
+        name = self.collect_item(state, item)
+        if not name: return False
+
+        if isinstance(item, CavernOfDreamsCarryable):
+            if item.location is not None:
+                add_region_entries(state, item.location.parent_region.name, item.player)
+                add_carryable_source(state, item.player, item.location.parent_region, item.carryable)
+            return True
+
+        if item.name in item_groups["Egg"]:
+            state.prog_items[self.player]["Egg"] += 1
+        elif item.name in item_groups["Shroom"]:
+            state.prog_items[self.player]["Shroom"] += 1
+
+        state.prog_items[self.player][name] += 1
+
+        return True
+
     def create_regions(self):
-        create_regions(self)
+        self.carryable_locations = create_regions(self)
         # visualize_regions(
         #     self.get_region("Menu"),
         #     "wew.puml",
@@ -52,9 +105,7 @@ class CavernOfDreamsWorld(World):
 
     create_items = item_rando.create_items
     get_pre_fill_items = item_rando.get_pre_fill_items
-
-    def post_fill(self) -> None:
-        return super().post_fill()
+    pre_fill = item_rando.pre_fill
 
     def fill_slot_data(self):# -> Mapping[str, Any]:
         return {
@@ -62,14 +113,20 @@ class CavernOfDreamsWorld(World):
         }
 
     def generate_early(self) -> None:
-        if not (self.options.shroomsanity and self.options.eventsanity):
-            self.multiworld.accessibility[self.player].value = Accessibility.option_minimal
-            logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to shroomsanity and/or eventsanity settings")
+        if (not self.options.shuffle_abilities) and self.options.split_tail:
+            self.options.split_tail.value = SplitTail.option_false
+            logger.warning(f"split tail disabled for player {self.multiworld.get_player_name(self.player)} due to ability shuffle being disabled")
+
+        if self.options.carryablesanity:
+            self.options.accessibility.value = Accessibility.option_minimal
+            logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to carryablesanity settings")
 
     def set_rules(self) -> None:
         self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
 
-    def create_item(self, name: str) -> CavernOfDreamsItem:
+    def create_item(self, name: str) -> "Item":
+        if name in item_groups["Carryable"]:
+            return CavernOfDreamsCarryable(name, self.item_name_to_id[name], self.player)
         return CavernOfDreamsItem(name, self.item_name_to_id[name], self.player)
 
     def create_event(self, name: str, skippable: bool = False) -> CavernOfDreamsEvent:

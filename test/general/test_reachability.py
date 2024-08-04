@@ -28,6 +28,14 @@ class TestBase(unittest.TestCase):
             "Ceres",
             "Gauntlet Top",
             "Mama Turtle"
+        },
+        "Cavern of Dreams": {
+            "LAKE.LostleafLake.SecretWorld",
+            "PALACE.Valley.ClipIntoIce",
+            "LAKE.LostleafLake.TreehouseRoof",
+            "LAKE.LostleafLake.WaterfallCanopy",
+            "LAKE.LostleafLake.CryptCanopy",
+            "LAKE.Crypt.SecretWorld",
         }
     }
 
@@ -50,6 +58,7 @@ class TestBase(unittest.TestCase):
                             self.assertFalse(region.can_reach(state))
                     else:
                         with self.subTest("Region should be reached", region=region.name):
+                            print(region.name)
                             self.assertTrue(region.can_reach(state))
 
                 with self.subTest("Completion Condition"):

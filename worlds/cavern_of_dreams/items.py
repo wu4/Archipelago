@@ -31,7 +31,6 @@ class CavernOfDreamsItem(Item):
     def __init__(self, name: str, code: int, player: int):
         super().__init__(name, CavernOfDreamsItem.get_classification(name), code, player)
 
-
 class CavernOfDreamsEvent(Item):
     game = "Cavern of Dreams"
 

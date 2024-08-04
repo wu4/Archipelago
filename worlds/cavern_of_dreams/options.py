@@ -125,6 +125,11 @@ class Gratitudesanity(Choice):
     option_split = 2
 
 
+class Carryablesanity(Toggle):
+    """Shuffles all carryable items into the pool. Accessibility is set to 'minimal' with this option enabled."""
+    default = 0
+
+
 class Shroomsanity(Toggle):
     """Shuffles all shrooms into the pool. Accessibility is set to 'minimal' with this option disabled."""
     default = 1
@@ -317,6 +322,7 @@ class CavernOfDreamsOptions(PerGameCommonOptions):
     shroomsanity: Shroomsanity
     eventsanity: Eventsanity
     gratitudesanity: Gratitudesanity
+    carryablesanity: Carryablesanity
 
     shuffle_abilities: ShuffleAbilities
 
