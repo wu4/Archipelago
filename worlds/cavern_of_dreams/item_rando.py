@@ -130,7 +130,7 @@ def get_restrictive_start_items(self: "CavernOfDreamsWorld"):
 
 def pre_fill(self: "CavernOfDreamsWorld"):
     if not self.options.shroomsanity:
-        early_item = self.multiworld.random.choice(list(get_restrictive_start_items(self)))
+        early_item = self.random.choice(list(get_restrictive_start_items(self)))
         self.multiworld.local_early_items[self.player][early_item] = 1
 
     if self.options.carryablesanity:
@@ -145,7 +145,7 @@ def pre_fill(self: "CavernOfDreamsWorld"):
         # for location in self.carryable_locations:
         #     print(location.name)
 
-        self.multiworld.random.shuffle(self.carryable_locations)
+        self.random.shuffle(self.carryable_locations)
 
         fill_restrictive(
             self.multiworld,
