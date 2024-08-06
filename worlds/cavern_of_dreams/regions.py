@@ -30,7 +30,7 @@ class CavernOfDreamsLocation(Location):
 
     @final
     def access_rule(self, state: CollectionState) -> bool:
-        if self.item is not None and isinstance(self.item, CavernOfDreamsCarryable):
+        if self.item is not None and isinstance(self.item, CavernOfDreamsCarryable) and self.item.carryable != "Jester Boots":
             if not state.has("Carry", self.player): return False
         return CarryableTestResult.SUCCESS in check_any_access(self, state)
 
