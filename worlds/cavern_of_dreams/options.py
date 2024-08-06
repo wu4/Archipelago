@@ -101,14 +101,9 @@ class AirSwim(Choice):
     option_shuffle = 2
 
 
-class JesterBootsAnywhere(Toggle):
-    """Considers tech that enables taking the Jester Boots outside of intended rooms in logic."""
-    default = 0
-
-
 class Eventsanity(Toggle):
     """Shuffles events into the pool. For example, healing the Giant is a location with a check. Accessibility is set to 'minimal' with this option disabled."""
-    default = 1
+    default = 0
 
 
 class Gratitudesanity(Choice):
@@ -137,7 +132,7 @@ class Shroomsanity(Toggle):
 
 class ShuffleAbilities(Toggle):
     """Shuffles the abilities the Sage gives you into the pool."""
-    default = 0
+    default = 1
 
 
 class ShuffleHighJump(Toggle):
@@ -340,8 +335,6 @@ class CavernOfDreamsOptions(PerGameCommonOptions):
     super_bounce: SuperBounce
     super_bubble_jump: SuperBubbleJump
     air_swim: AirSwim
-
-    jester_boots_anywhere: JesterBootsAnywhere
 
     ejection_launch: EjectionLaunch
     z_target: ZTarget
