@@ -19,6 +19,12 @@ class Difficulty(Choice):
 class StartLocation(Choice):
     """
     Where Fynn should start their adventure.
+
+    NOTE: Not all start locations are made equally. Most notably, the Crypt and
+    Water Drone will be guaranteed BK with some combinations of options.
+
+    Shuffle Swim will be automatically disabled if an underwater area is
+    selected.
     """
     default = 0
 
@@ -38,18 +44,22 @@ class StartLocation(Choice):
     option_armada_outside = 10
     option_armada_inside = 11
     option_armada_earth_drone = 12
+    option_armada_fire_drone = 13
+    option_armada_water_drone = 14
 
-    option_prismic_outside = 13
-    option_prismic_palace = 14
+    option_prismic_valley = 15
+    option_prismic_palace = 16
+    option_heavens_gate = 17
+    option_observatory = 18
 
-    option_gallery_foyer = 15
-    option_gallery_green = 16
-    option_gallery_red = 17
-    option_gallery_white = 18
+    option_gallery_foyer = 19
+    option_gallery_earth = 20
+    option_gallery_fire = 21
+    option_gallery_water = 22
 
-    option_wastes_of_eternity = 19
-    option_coils_of_agony = 20
-    option_pits_of_despair = 21
+    option_wastes_of_eternity = 23
+    option_coils_of_agony = 24
+    option_pits_of_despair = 25
 
 
 class EntranceRando(Toggle):
@@ -102,7 +112,7 @@ class AirSwim(Choice):
 
 
 class Eventsanity(Toggle):
-    """Shuffles events into the pool. For example, healing the Giant is a location with a check. Accessibility is set to 'minimal' with this option disabled."""
+    """Shuffles events into the pool. For example, healing the Giant is a location with a check."""
     default = 0
 
 
@@ -120,9 +130,23 @@ class Gratitudesanity(Choice):
     option_split = 2
 
 
-class Carryablesanity(Toggle):
-    """Shuffles all carryable items into the pool. Accessibility is set to 'minimal' with this option enabled."""
+class Carryablesanity(Choice):
+    """
+    How to treat carryable items, like the apples in Lostleaf Lake, Jester
+    Boots its various locations, and so on.
+
+    Disable (default): Leave them in their usual spots.
+    Kind: Shuffle them into the pool. Entering doorways will cause you to drop
+    your carryable, ensuring short pathways.
+    Mean: Shuffle them into the pool without mercy. An example scenario is that
+    you may have to carry Shelnert's Fish from Shelwart's tombstone through
+    Lostleaf Lake, into Sun Cavern, then through Moon Cavern, Gallery Lobby,
+    the Foyer, and finally into the Earth Lobby to toss into the painting.
+    """
     default = 0
+    option_disable = 0
+    option_kind = 1
+    option_mean = 2
 
 
 class Shroomsanity(Toggle):

@@ -18,43 +18,53 @@ class CavernOfDreamsCarryable(CavernOfDreamsItem):
         self.carryable = name
 
 class CarryableTestResult(IntFlag):
-    SUCCESS        = 0b001
-    NEED_NONE      = 0b011
-    FAIL           = 0b100
+    SUCCESS        = 0b0001
+    NEED_NONE      = 0b0011
+    FAIL           = 0b0100
+    NEVER          = 0b1100
 
 def check_carryable_access(
     node: "CavernOfDreamsEntrance | CavernOfDreamsLocation",
     carryable: "MaybeTempItem",
     state: "CollectionState"
 ) -> CarryableTestResult:
-    if node.dont_care_access_rule(state):
-        return CarryableTestResult.SUCCESS
+    can_be_traversed = False
+    if node.dont_care_access_rule:
+        can_be_traversed = True
+        if node.dont_care_access_rule(state): return CarryableTestResult.SUCCESS
 
     # e.g. not carrying jester boots
     for inverse_carryable, rule in node.inverse_carryable_access_rules.items():
         if carryable == inverse_carryable: continue
+        can_be_traversed = True
         if rule(state): return CarryableTestResult.SUCCESS
 
     # requires carrying the current carryable
     if rule := node.carryable_access_rules.get(carryable):
+        can_be_traversed = True
         if rule(state): return CarryableTestResult.SUCCESS
 
     if carryable is not None:
         # can drop carryable
         if rule := node.carryable_access_rules.get(None):
+            can_be_traversed = True
             if rule(state): return CarryableTestResult.NEED_NONE
 
         # also can drop carryable
         if rule := node.inverse_carryable_access_rules.get(carryable):
+            can_be_traversed = True
             if rule(state): return CarryableTestResult.NEED_NONE
 
-    return CarryableTestResult.FAIL
+    if can_be_traversed:
+        return CarryableTestResult.FAIL
+    else:
+        return CarryableTestResult.NEVER
 
 def check_any_access(
     node: "CavernOfDreamsEntrance | CavernOfDreamsLocation",
     state: "CollectionState"
 ) -> CarryableTestResult:
-    if node.dont_care_access_rule(state):
+    if node.dont_care_access_rule and node.dont_care_access_rule(state):
         return CarryableTestResult.SUCCESS
 
     return check_any_carryable_access(node, state)

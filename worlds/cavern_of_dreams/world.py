@@ -1,12 +1,15 @@
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Generator, Iterable, Iterator, Sequence
 from Options import Accessibility
 import logging
 from worlds.AutoWorld import WebWorld, World
+from worlds.cavern_of_dreams.ap_generated.entrance_rando import create_entrances, bilinear, one_way
+from worlds.cavern_of_dreams.custom_start_location import needs_starting_swim
+from worlds.cavern_of_dreams.entrance_rando import link_entrances, randomize_entrances
 from .carryables import CavernOfDreamsCarryable
 from .state_patches import add_carryable_source, add_region_entries, remove_carryable_source
-from .options import CavernOfDreamsOptions, SplitTail
+from .options import Carryablesanity, CavernOfDreamsOptions, ExcludeWings, IncludeDoubleJump, ShuffleSwim, SplitTail
 from .ap_generated.data import all_items, all_locations, item_groups
-from .ap_generated.regions import create_regions
+from .ap_generated.regions import create_regions as generated_create_regions
 from . import item_rando
 from .items import CavernOfDreamsItem, CavernOfDreamsEvent
 from .regions import get_all_paths
@@ -30,6 +33,11 @@ def unique_only(ts: Iterable[T]) -> Sequence[T]:
       ret.append(t)
   return ret
 
+def include_flipped(ts: Iterable[tuple[T, T]]) -> Generator[tuple[T, T], None, None]:
+    for t in ts:
+        yield t
+        yield t[1], t[0]
+
 class CavernOfDreamsWorld(World):
     """Cavern of Dreams"""
 
@@ -37,10 +45,12 @@ class CavernOfDreamsWorld(World):
     options: CavernOfDreamsOptions
 
     carryable_locations: list["Location"]
+    pity_items: list[str]
 
     game = "Cavern of Dreams"
     # settings: ClassVar[MetroidPrimeSettings]
-    topology_present = True
+    topology_present = False
+    entrance_map: list[tuple[str, str]]
 
     #           lost leaf :)
     base_id = 0x1057_1eaf
@@ -57,6 +67,7 @@ class CavernOfDreamsWorld(World):
 
     def __init__(self, multiworld: "MultiWorld", player: int):
         self.carryable_locations = []
+        self.entrance_map = []
         super().__init__(multiworld, player)
 
     def remove(self, state: "CollectionState", item: "Item") -> bool:
@@ -96,30 +107,50 @@ class CavernOfDreamsWorld(World):
         return True
 
     def create_regions(self):
-        self.carryable_locations = create_regions(self)
-        # visualize_regions(
-        #     self.get_region("Menu"),
-        #     "wew.puml",
-        #     show_other_regions = False
-        # )
+        self.carryable_locations = generated_create_regions(self)
+
+        entrances = create_entrances(self)
+        # non-entrance rando is handled in generated_create_regions
+        if self.options.entrance_rando:
+            print("randomizing entrances!")
+            rando_bilinear = randomize_entrances(self, bilinear)
+            rando_one_way = randomize_entrances(self, one_way)
+            entrance_map = [*rando_one_way, *include_flipped(rando_bilinear)]
+            print("rando map:")
+            for warp, dest in entrance_map:
+                print(f"{warp} -> {dest}")
+        else:
+            entrance_map = [*one_way, *include_flipped(bilinear)]
+        link_entrances(self, entrance_map, entrances)
+        self.entrance_map = entrance_map
 
     create_items = item_rando.create_items
     get_pre_fill_items = item_rando.get_pre_fill_items
     pre_fill = item_rando.pre_fill
 
-    def fill_slot_data(self):# -> Mapping[str, Any]:
+    def fill_slot_data(self):
         return {
-            "splitGratitude": self.options.gratitudesanity == 2
+            "splitGratitude": self.options.gratitudesanity == 2,
+            "startLocation": str(self.options.start_location),
+            "entranceMap": self.entrance_map,
+            "dropCarryables": self.options.carryablesanity == Carryablesanity.option_kind,
+            "pityItems": self.pity_items
         }
 
     def generate_early(self) -> None:
-        if (not self.options.shuffle_abilities) and self.options.split_tail:
-            self.options.split_tail.value = SplitTail.option_false
-            logger.warning(f"split tail disabled for player {self.multiworld.get_player_name(self.player)} due to ability shuffle being disabled")
+        if not self.options.shuffle_abilities:
+            if self.options.split_tail:
+                self.options.split_tail.value = SplitTail.option_false
+                logger.warning(f"split tail disabled for player {self.multiworld.get_player_name(self.player)} due to ability shuffle being disabled")
 
-        if self.options.carryablesanity:
-            self.options.accessibility.value = Accessibility.option_minimal
-            logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to carryablesanity settings")
+        if self.options.entrance_rando:
+            if self.options.accessibility != Accessibility.option_minimal:
+                self.options.accessibility.value = Accessibility.option_minimal
+                logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to entrance rando")
+        elif self.options.carryablesanity == Carryablesanity.option_mean:
+            if self.options.accessibility != Accessibility.option_minimal:
+                self.options.accessibility.value = Accessibility.option_minimal
+                logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to carryablesanity settings")
 
     def set_rules(self) -> None:
         self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
@@ -134,32 +165,3 @@ class CavernOfDreamsWorld(World):
 
     def create_nothing(self):
         return self.create_item("Nothing")
-
-    @staticmethod
-    def get_spoiler_path(state: "CollectionState", region: "Region") -> list[tuple[str, str] | tuple[str, None]]:
-        from itertools import zip_longest
-
-        def flist_to_iter(path_value: "PathValue | None") -> Iterator[str]:
-            while path_value:
-                region_or_entrance, path_value = path_value
-                yield region_or_entrance
-
-        all_paths = get_all_paths(state, region.player)
-        # menu = state.multiworld.get_region('Menu', player)
-        result = next(filter(lambda r: region in r[1], all_paths.items()), None)
-        if result is None:
-            raise KeyError(f"unable to find valid path for {region}")
-        start, paths = result
-
-        reversed_path_as_flist: PathValue = paths.get(region, (str(region), None))
-        string_path_flat = reversed(list(map(str, flist_to_iter(reversed_path_as_flist))))
-        # Now we combine the flat string list into (region, exit) pairs
-        pathsiter = iter(string_path_flat)
-        pathpairs = zip_longest(pathsiter, pathsiter)
-        ret = list(pathpairs)
-        if start.name != "Menu":
-            ret = CavernOfDreamsWorld.get_spoiler_path(state, start) + ret
-        return ret
-
-    # set_rules = generated.rules.set_rules
-

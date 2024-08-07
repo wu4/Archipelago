@@ -3,7 +3,7 @@ from collections.abc import Collection
 from BaseClasses import Location, Region, Entrance, CollectionState, MultiWorld
 
 from collections import deque
-from typing import Callable, TypeAlias, TypeVar, final
+from typing import Callable, Literal, TypeAlias, TypeVar, final
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ class CavernOfDreamsLocation(Location):
 
     carryable_access_rules: CarryableAccessRules
     inverse_carryable_access_rules: CarryableAccessRules
-    dont_care_access_rule: Callable[[CollectionState], bool] = staticmethod(lambda state: False)
+    dont_care_access_rule: Callable[[CollectionState], bool] | Literal[False] = False
 
     @final
     def access_rule(self, state: CollectionState) -> bool:
@@ -53,7 +53,9 @@ class CavernOfDreamsEntrance(Entrance):
 
     carryable_access_rules: CarryableAccessRules
     inverse_carryable_access_rules: CarryableAccessRules
-    dont_care_access_rule: Callable[[CollectionState], bool] = staticmethod(lambda state: False)
+    dont_care_access_rule: Callable[[CollectionState], bool] | Literal[False] = False
+
+    reject_carryables: bool = False
 
     @final
     def access_rule(self, state: CollectionState) -> bool:
@@ -142,6 +144,9 @@ def _update_region_accessibility(
     while queue:
         connection: Entrance = queue.popleft()
         new_region = connection.connected_region
+        if temp_item is not None and connection.reject_carryables:
+            blocked_connections.remove(connection)
+            continue
         if new_region in reachable_regions:
             blocked_connections.remove(connection)
             continue
@@ -150,12 +155,12 @@ def _update_region_accessibility(
 
         result = check_carryable_access(connection, temp_item, state)
 
-        if CarryableTestResult.FAIL in result:
-            if "Victory" in connection.name:
-                print(">>>", connection.name, result)
-                print(state.prog_items)
+        if CarryableTestResult.NEVER in result:
+            blocked_connections.remove(connection)
             continue
 
+        if CarryableTestResult.FAIL in result:
+            continue
 
         if CarryableTestResult.NEED_NONE in result:
             if new_region not in get_reachable_regions(state, "dont-care", player):
