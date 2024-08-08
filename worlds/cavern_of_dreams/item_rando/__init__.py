@@ -3,38 +3,18 @@ import logging
 from typing import TYPE_CHECKING, Any, Counter
 
 from Fill import fill_restrictive
-from worlds.cavern_of_dreams.custom_start_location import needs_starting_swim
-from worlds.cavern_of_dreams.options import AirSwim, BubbleJump, Carryablesanity, Difficulty, Gratitudesanity, StartLocation, SuperBounce, SuperBubbleJump
-from .ap_generated.data import item_groups, location_groups, all_items, vanilla_locations
+from ..custom_start_location import needs_starting_swim
+from .restrictive_starts import process_restrictive_starts
+from ..options import AirSwim, Carryablesanity, Difficulty, Gratitudesanity, StartLocation, SuperBounce, SuperBubbleJump
+from ..ap_generated.data import item_groups, location_groups, all_items, vanilla_locations
+from .sane_items import precollect_and_place_sane_items
 
 all_items_as_set = set(all_items)
 logger = logging.getLogger("Cavern of Dreams")
 
 if TYPE_CHECKING:
     from BaseClasses import Item
-    from .world import CavernOfDreamsWorld
-
-
-def _get_unshuffled_vanilla_abilities(self: "CavernOfDreamsWorld") -> Generator[str, Any, None]:
-    if not self.options.shuffle_swim:
-        yield "Swim"
-    if not self.options.shuffle_roll:
-        yield "Roll"
-    if not self.options.shuffle_high_jump:
-        yield "High Jump"
-    if not self.options.shuffle_sprint:
-        yield "Sprint"
-    if not self.options.shuffle_carry:
-        yield "Carry"
-    if not self.options.shuffle_climb:
-        yield "Climb"
-    if self.options.super_bounce == SuperBounce.option_enable:
-        yield "Super Bounce"
-    if self.options.air_swim == AirSwim.option_enable:
-        yield "Air Swim"
-    if self.options.super_bubble_jump == SuperBubbleJump.option_enable:
-        yield "Super Bubble Jump"
-
+    from ..world import CavernOfDreamsWorld
 
 def _get_excluded_items(self: "CavernOfDreamsWorld") -> Generator[str, Any, None]:
     if not self.options.include_double_jump:
@@ -65,28 +45,10 @@ def _get_excluded_items(self: "CavernOfDreamsWorld") -> Generator[str, Any, None
         for teleport in item_groups["Teleport"]:
             yield teleport
 
-
-def _get_sane_locations(self: "CavernOfDreamsWorld") -> Generator[str, Any, None]:
-    if not self.options.shuffle_abilities:
-        for location in location_groups["Ability"]:
-            yield location
-    if not self.options.shroomsanity:
-        for location in location_groups["Shroom"]:
-            yield location
-    if not self.options.eventsanity:
-        for location in location_groups["Event"]:
-            yield location
-    if self.options.gratitudesanity == 0:
-        for location in location_groups["Gratitude"]:
-            yield location
-    if self.options.carryablesanity == 0:
-        for location in location_groups["Carryable"]:
-            yield location
-
 def get_pre_fill_items(self: "CavernOfDreamsWorld") -> list["Item"]:
     ret: list[Item] = []
     if self.options.carryablesanity != Carryablesanity.option_disable:
-        ret.extend([self.create_item(item) for item in all_carryable_items()])
+        ret.extend([self.create_item(item) for item in _all_carryable_items()])
     return ret
 
 def pre_fill(self: "CavernOfDreamsWorld"):
@@ -109,48 +71,12 @@ def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_po
         pending_item_pool.remove(next(item for item in pending_item_pool if item.name in item_groups["Card"]))
         diff += 1
 
-def all_carryable_items():
+def _all_carryable_items():
     for location in location_groups["Carryable"]:
         yield vanilla_locations[location]
 
-def get_restrictive_start_items(self: "CavernOfDreamsWorld"):
-    if self.options.shuffle_abilities:
-        if self.options.split_tail:
-            yield "Grounded Tail"
-            yield "Aerial Tail"
-        else:
-            yield "Tail"
-        if self.options.bubble_jump != BubbleJump.option_disable:
-            yield "Bubble"
-        yield "Horn"
-        yield "Wings"
-
-    if self.options.shuffle_high_jump:
-        yield "High Jump"
-
-    if self.options.start_location == StartLocation.option_prismic_lobby:
-        if self.options.entrance_rando:
-            yield "Swim"
-
-    elif self.options.start_location == StartLocation.option_prismic_palace:
-        yield "Sprint"
-
-    elif self.options.start_location == StartLocation.option_sun_cavern:
-        yield "Bricked Egg"
-
-        if self.options.shroomsanity:
-            if self.options.shuffle_climb:
-                yield "Climb"
-
-        if self.options.gratitudesanity == Gratitudesanity.option_enable:
-            for item in item_groups["Gratitude"]:
-                yield item
-        elif self.options.gratitudesanity == Gratitudesanity.option_split:
-            for item in item_groups["Teleport"]:
-                yield item
-
 def _fill_carryablesanity(world: "CavernOfDreamsWorld"):
-    carryables = Counter(all_carryable_items())
+    carryables = Counter(_all_carryable_items())
 
     if world.options.carryablesanity == Carryablesanity.option_kind:
         pass
@@ -219,55 +145,16 @@ def _get_pity_items(self: "CavernOfDreamsWorld"):
             if self.options.shuffle_carry:
                 yield "Carry"
 
-always_restrictive: list[int] = [
-    StartLocation.option_gallery_water,
-    StartLocation.option_heavens_gate,
-    StartLocation.option_lostleaf_crypt,
-]
-
-shroomless_restrictive: list[int] = [
-    StartLocation.option_sun_cavern,
-    StartLocation.option_prismic_valley,
-    StartLocation.option_prismic_palace,
-    StartLocation.option_prismic_lobby
-]
-
-def _is_restrictive_start(self: "CavernOfDreamsWorld"):
-    if self.options.shroomsanity:
-        return self.options.start_location.value in always_restrictive
-    else:
-        return self.options.start_location.value in [*always_restrictive, *shroomless_restrictive]
-
-def _place_sane_items(self: "CavernOfDreamsWorld"):
-    for location in _get_sane_locations(self):
-        vanilla_item_name = vanilla_locations[location]
-
-        item = self.create_item(vanilla_item_name)
-        vanilla_location = self.multiworld.get_location(location, self.player)
-        vanilla_location.place_locked_item(item)
-
-        yield vanilla_item_name
-
 def create_items(self: "CavernOfDreamsWorld"):
     exclude = Counter(_get_excluded_items(self))
-    unshuffled_vanilla_abilities = Counter(_get_unshuffled_vanilla_abilities(self))
 
     self.pity_items = list(_get_pity_items(self))
     for item_name in self.pity_items:
         self.multiworld.push_precollected(self.create_item(item_name))
 
-    for item_name in unshuffled_vanilla_abilities.elements():
-        self.multiworld.push_precollected(self.create_item(item_name))
+    process_restrictive_starts(self)
 
-    if _is_restrictive_start(self):
-        restrictive_start_items = [*get_restrictive_start_items(self)]
-        if restrictive_start_items != []:
-            start_item = self.random.choice(restrictive_start_items)
-            self.multiworld.local_early_items[self.player][start_item] = 1
-        else:
-            logger.warning(f"restrictive start detected, but no possible restrictive start items for player {self.multiworld.get_player_name(self.player)}")
-
-    exclude += Counter(_place_sane_items(self))
+    exclude += Counter(precollect_and_place_sane_items(self))
 
     exclude.update(item.name for item in self.get_pre_fill_items())
 

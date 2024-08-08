@@ -150,7 +150,7 @@ class Carryablesanity(Choice):
 
 
 class Shroomsanity(Toggle):
-    """Shuffles all shrooms into the pool. Accessibility is set to 'minimal' with this option disabled."""
+    """Shuffles all shrooms into the pool."""
     default = 1
 
 

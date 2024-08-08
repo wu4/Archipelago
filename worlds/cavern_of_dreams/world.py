@@ -2,9 +2,8 @@ from collections.abc import Generator, Iterable, Iterator, Sequence
 from Options import Accessibility
 import logging
 from worlds.AutoWorld import WebWorld, World
-from worlds.cavern_of_dreams.ap_generated.entrance_rando import create_entrances, bilinear, one_way
-from worlds.cavern_of_dreams.custom_start_location import needs_starting_swim
-from worlds.cavern_of_dreams.entrance_rando import link_entrances, randomize_entrances
+
+from .entrance_rando import create_and_link_entrances
 from .carryables import CavernOfDreamsCarryable
 from .state_patches import add_carryable_source, add_region_entries, remove_carryable_source
 from .options import Carryablesanity, CavernOfDreamsOptions, ExcludeWings, IncludeDoubleJump, ShuffleSwim, SplitTail
@@ -12,7 +11,6 @@ from .ap_generated.data import all_items, all_locations, item_groups
 from .ap_generated.regions import create_regions as generated_create_regions
 from . import item_rando
 from .items import CavernOfDreamsItem, CavernOfDreamsEvent
-from .regions import get_all_paths
 
 from typing import TYPE_CHECKING, TypeVar
 if TYPE_CHECKING:
@@ -32,11 +30,6 @@ def unique_only(ts: Iterable[T]) -> Sequence[T]:
     if not t in ret:
       ret.append(t)
   return ret
-
-def include_flipped(ts: Iterable[tuple[T, T]]) -> Generator[tuple[T, T], None, None]:
-    for t in ts:
-        yield t
-        yield t[1], t[0]
 
 class CavernOfDreamsWorld(World):
     """Cavern of Dreams"""
@@ -109,20 +102,7 @@ class CavernOfDreamsWorld(World):
     def create_regions(self):
         self.carryable_locations = generated_create_regions(self)
 
-        entrances = create_entrances(self)
-        # non-entrance rando is handled in generated_create_regions
-        if self.options.entrance_rando:
-            print("randomizing entrances!")
-            rando_bilinear = randomize_entrances(self, bilinear)
-            rando_one_way = randomize_entrances(self, one_way)
-            entrance_map = [*rando_one_way, *include_flipped(rando_bilinear)]
-            print("rando map:")
-            for warp, dest in entrance_map:
-                print(f"{warp} -> {dest}")
-        else:
-            entrance_map = [*one_way, *include_flipped(bilinear)]
-        link_entrances(self, entrance_map, entrances)
-        self.entrance_map = entrance_map
+        self.entrance_map = create_and_link_entrances(self)
 
     create_items = item_rando.create_items
     get_pre_fill_items = item_rando.get_pre_fill_items
