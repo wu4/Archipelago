@@ -1,7 +1,8 @@
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 import logging
 from typing import TYPE_CHECKING, Any, Counter
 
+from BaseClasses import ItemClassification
 from Fill import fill_restrictive
 from ..custom_start_location import needs_starting_swim
 from .restrictive_starts import process_restrictive_starts
@@ -64,11 +65,19 @@ def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_po
         diff -= len(location_groups["Carryable"])
 
     while diff > 0:
-        pending_item_pool.append(self.create_nothing())
+        pending_item_pool.append(self.create_item("Shroom"))
         diff -= 1
 
     while diff < 0:
-        pending_item_pool.remove(next(item for item in pending_item_pool if item.name in item_groups["Card"]))
+        for item in pending_item_pool:
+            if item.name == "Shroom":
+                if item.classification != ItemClassification.progression_skip_balancing:
+                    print(item.classification)
+        pending_item_pool.remove(next(
+            item for item in pending_item_pool
+            if item.classification == ItemClassification.filler
+               and item.name == "Shroom"
+        ))
         diff += 1
 
 def _all_carryable_items():
@@ -145,6 +154,14 @@ def _get_pity_items(self: "CavernOfDreamsWorld"):
             if self.options.shuffle_carry:
                 yield "Carry"
 
+def _make_first_shrooms_progression(items: Iterable[str], count: int):
+    for item in items:
+        if item == "Shroom" and count > 0:
+            yield "Progression Shroom"
+            count -= 1
+            continue
+        yield item
+
 def create_items(self: "CavernOfDreamsWorld"):
     exclude = Counter(_get_excluded_items(self))
 
@@ -162,7 +179,7 @@ def create_items(self: "CavernOfDreamsWorld"):
 
     pending_item_pool = [
         self.create_item(item)
-        for item in (Counter(all_items) - exclude).elements()
+        for item in (Counter(_make_first_shrooms_progression(all_items, 40 + 60 + 80 + 100)) - exclude).elements()
     ]
 
     _match_pool_size_with_locations(self, pending_item_pool)

@@ -16,10 +16,6 @@ from typing import TYPE_CHECKING, TypeVar
 if TYPE_CHECKING:
     from BaseClasses import Region, CollectionState, PathValue, Item, Location, MultiWorld
 
-all_items_with_extras = all_items + ["Nothing"]
-
-all_locations_with_extras = all_locations
-
 logger = logging.getLogger("Cavern of Dreams")
 
 T = TypeVar("T")
@@ -49,9 +45,9 @@ class CavernOfDreamsWorld(World):
     base_id = 0x1057_1eaf
 
     item_name_to_id = {name: id for
-                       id, name in enumerate(unique_only(all_items_with_extras), base_id)}
+                       id, name in enumerate(unique_only(all_items), base_id)}
     location_name_to_id = {name: id for
-                           id, name in enumerate(all_locations_with_extras, base_id)}
+                           id, name in enumerate(all_locations, base_id)}
 
     item_name_groups = item_groups
 
@@ -73,8 +69,8 @@ class CavernOfDreamsWorld(World):
 
         if item.name in item_groups["Egg"]:
             state.prog_items[self.player]["Egg"] -= 1
-        elif item.name in item_groups["Shroom"]:
-            state.prog_items[self.player]["Shroom"] -= 1
+        # elif item.name in item_groups["Shroom"]:
+        #     state.prog_items[self.player]["Shroom"] -= 1
 
         state.prog_items[self.player][name] -= 1
 
@@ -92,8 +88,8 @@ class CavernOfDreamsWorld(World):
 
         if item.name in item_groups["Egg"]:
             state.prog_items[self.player]["Egg"] += 1
-        elif item.name in item_groups["Shroom"]:
-            state.prog_items[self.player]["Shroom"] += 1
+        # elif item.name in item_groups["Shroom"]:
+        #     state.prog_items[self.player]["Shroom"] += 1
 
         state.prog_items[self.player][name] += 1
 
@@ -114,7 +110,8 @@ class CavernOfDreamsWorld(World):
             "startLocation": str(self.options.start_location),
             "entranceMap": self.entrance_map,
             "dropCarryables": self.options.carryablesanity == Carryablesanity.option_kind,
-            "pityItems": self.pity_items
+            "pityItems": self.pity_items,
+            "allowFun": self.options.allow_fun.value == 1
         }
 
     def generate_early(self) -> None:
@@ -138,7 +135,10 @@ class CavernOfDreamsWorld(World):
     def create_item(self, name: str) -> "Item":
         if name in item_groups["Carryable"]:
             return CavernOfDreamsCarryable(name, self.item_name_to_id[name], self.player)
-        return CavernOfDreamsItem(name, self.item_name_to_id[name], self.player)
+        id_name = name
+        if name == "Progression Shroom":
+            id_name = "Shroom"
+        return CavernOfDreamsItem(name, self.item_name_to_id[id_name], self.player)
 
     def create_event(self, name: str, skippable: bool = False) -> CavernOfDreamsEvent:
         return CavernOfDreamsEvent(name, self.player, skippable)

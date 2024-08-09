@@ -331,6 +331,17 @@ class AirTailJump(Toggle):
     default = 0
 
 
+class AllowFun(Toggle):
+    """
+    Allows making use of some combinations of abilities that are out-of-logic.
+
+    When disabled, the Jester Boots have a distaste for Fynn carrying items,
+    and will refuse to allow Fynn to pick items up unless they are taken off
+    first.
+    """
+    default = 0
+
+
 @dataclass
 class CavernOfDreamsOptions(PerGameCommonOptions):
     difficulty: Difficulty
@@ -375,5 +386,6 @@ class CavernOfDreamsOptions(PerGameCommonOptions):
 
     ground_tail_jump: GroundTailJump
     air_tail_jump: AirTailJump
+    allow_fun: AllowFun
 
     death_link: DeathLink
