@@ -94,11 +94,11 @@ def check_any_carryable_access(
 
     for carryable in valid_carryables:
         if carryable is None: continue
-        access_rule = node.carryable_access_rules[carryable]
-        if access_rule(state):
-            # if not self.hide_path:
-            #     _add_entrance_path_node(self, state)
-            return CarryableTestResult.SUCCESS
+        if access_rule := node.carryable_access_rules.get(carryable):
+            if access_rule(state):
+                # if not self.hide_path:
+                #     _add_entrance_path_node(self, state)
+                return CarryableTestResult.SUCCESS
 
     region_carryables_len = len(valid_carryables)
     if region_carryables_len > 0:
