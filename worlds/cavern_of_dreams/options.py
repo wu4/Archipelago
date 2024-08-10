@@ -20,11 +20,9 @@ class StartLocation(Choice):
     """
     Where Fynn should start their adventure.
 
-    NOTE: Not all start locations are made equally. Most notably, the Crypt and
-    Water Drone will be guaranteed BK with some combinations of options.
-
-    Shuffle Swim will be automatically disabled if an underwater area is
-    selected.
+    NOTE: Not all start locations are made equally. In some particular cases,
+    Fynn will be given additional items to start with in order to minimize the
+    chances of BK (or to make the seed playable).
     """
     default = 0
 
@@ -74,8 +72,8 @@ class SuperBounce(Choice):
     How to treat super bounce, a tech that enables gaining significant height using an aerial tailwhip while rolling.
 
     Disable (default): Prevents the use of super bounce.
-    Enable: Allows the use of super bounce.
-    Shuffle: Shuffles super bounce into the pool.
+    Enable: Allows the use of super bounce, considering its use in logic.
+    Shuffle: Shuffles super bounce into the pool, considering its use in logic.
     """
     default = 0
     option_disable = 0
@@ -88,8 +86,8 @@ class SuperBubbleJump(Choice):
     How to treat super bubble jump, a tech that enables gaining significant height using bubble shots while rolling.
 
     Disable (default): Prevents the use of super bubble jump.
-    Enable: Allows the use of super bubble jump.
-    Shuffle: Shuffles super bubble jump into the pool.
+    Enable: Allows the use of super bubble jump, considering its use in logic.
+    Shuffle: Shuffles super bubble jump into the pool, considering its use in logic.
     """
     default = 0
     option_disable = 0
@@ -102,8 +100,8 @@ class AirSwim(Choice):
     How to treat air swim, a tech that enables free movement in the air.
 
     Disable (default): Prevents the use of air swim.
-    Enable: Allows the use of air swim.
-    Shuffle: Shuffles air swim into the pool.
+    Enable: Allows the use of air swim, considering its use in logic.
+    Shuffle: Shuffles air swim into the pool, considering its use in logic.
     """
     default = 0
     option_disable = 0
