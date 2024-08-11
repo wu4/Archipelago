@@ -6,7 +6,7 @@ from worlds.AutoWorld import WebWorld, World
 from .entrance_rando import create_and_link_entrances
 from .carryables import CavernOfDreamsCarryable
 from .state_patches import add_carryable_source, add_region_entries, remove_carryable_source
-from .options import Carryablesanity, CavernOfDreamsOptions, ExcludeWings, IncludeDoubleJump, ShuffleSwim, SplitTail
+from .options import Carryablesanity, CavernOfDreamsOptions, ExcludeWings, Gratitudesanity, IncludeDoubleJump, ShuffleSwim, SplitTail
 from .ap_generated.data import all_items, all_locations, item_groups
 from .ap_generated.regions import create_regions as generated_create_regions
 from . import item_rando
@@ -26,6 +26,7 @@ def unique_only(ts: Iterable[T]) -> Sequence[T]:
     if not t in ret:
       ret.append(t)
   return ret
+
 
 class CavernOfDreamsWorld(World):
     """Cavern of Dreams"""
@@ -59,6 +60,20 @@ class CavernOfDreamsWorld(World):
         self.entrance_map = []
         super().__init__(multiworld, player)
 
+    def _adjust_teleport_prog_item(self, gratitude_name: str, state: CollectionState, amount: int):
+        if gratitude_name == "Gratitude 1":
+            teleport_name = "Lake"
+        elif gratitude_name == "Gratitude 2":
+            teleport_name = "Armada"
+        elif gratitude_name == "Gratitude 3":
+            teleport_name = "Palace"
+        elif gratitude_name == "Gratitude 4":
+            teleport_name = "Gallery"
+        else:
+            raise ValueError(f"unknown gratitude {gratitude_name}")
+
+        state.prog_items[self.player][f"Open {teleport_name} Lobby Teleport"] += amount
+
     def remove(self, state: "CollectionState", item: "Item") -> bool:
         name = self.collect_item(state, item)
         if not name: return False
@@ -66,6 +81,9 @@ class CavernOfDreamsWorld(World):
         if isinstance(item, CavernOfDreamsCarryable):
             remove_carryable_source(state, self.player, item.location.parent_region, item.carryable)
             return True
+
+        if self.options.gratitudesanity != Gratitudesanity.option_split and item.name in item_groups["Gratitude"]:
+            self._adjust_teleport_prog_item(item.name, state, -1)
 
         if item.name in item_groups["Egg"]:
             state.prog_items[self.player]["Egg"] -= 1
@@ -85,6 +103,9 @@ class CavernOfDreamsWorld(World):
                 add_region_entries(state, item.location.parent_region.name, item.player)
                 add_carryable_source(state, item.player, item.location.parent_region, item.carryable)
             return True
+
+        if self.options.gratitudesanity != Gratitudesanity.option_split and item.name in item_groups["Gratitude"]:
+            self._adjust_teleport_prog_item(item.name, state, 1)
 
         if item.name in item_groups["Egg"]:
             state.prog_items[self.player]["Egg"] += 1
@@ -120,14 +141,17 @@ class CavernOfDreamsWorld(World):
                 self.options.split_tail.value = SplitTail.option_false
                 logger.warning(f"split tail disabled for player {self.multiworld.get_player_name(self.player)} due to ability shuffle being disabled")
 
-        if self.options.entrance_rando:
-            if self.options.accessibility != Accessibility.option_minimal:
+        if self.options.accessibility != Accessibility.option_minimal:
+            minimal_reasons: list[str] = []
+            if self.options.entrance_rando:
+                minimal_reasons.append("entrance rando")
+            if self.options.carryablesanity == Carryablesanity.option_mean:
+                minimal_reasons.append("mean carryablesanity")
+
+            if minimal_reasons != []:
                 self.options.accessibility.value = Accessibility.option_minimal
-                logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to entrance rando")
-        elif self.options.carryablesanity == Carryablesanity.option_mean:
-            if self.options.accessibility != Accessibility.option_minimal:
-                self.options.accessibility.value = Accessibility.option_minimal
-                logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to carryablesanity settings")
+                minimal_reasons_str = " and ".join(minimal_reasons)
+                logger.warning(f"accessibility forced to 'minimal' for player {self.multiworld.get_player_name(self.player)} due to {minimal_reasons_str}")
 
     def set_rules(self) -> None:
         self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
