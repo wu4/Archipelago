@@ -50,13 +50,12 @@ def create_and_link_entrances(world: "CavernOfDreamsWorld") -> list[EntranceExit
     entrances = generated_create_entrances(world)
 
     if world.options.entrance_rando:
-        print("randomizing entrances!")
         rando_bilinear = _randomize_entrance_pairs(world, bilinear)
         rando_one_way = _randomize_entrance_pairs(world, one_way)
         entrance_map = [*rando_one_way, *_include_flipped(rando_bilinear)]
-        print("rando map:")
-        for warp, dest in entrance_map:
-            print(f"{warp} -> {dest}")
+        # print("rando map:")
+        # for warp, dest in entrance_map:
+        #     print(f"{warp} -> {dest}")
     else:
         entrance_map = [*one_way, *_include_flipped(bilinear)]
 
