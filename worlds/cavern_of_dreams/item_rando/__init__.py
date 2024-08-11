@@ -69,10 +69,10 @@ def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_po
         diff -= 1
 
     while diff < 0:
-        for item in pending_item_pool:
-            if item.name == "Shroom":
-                if item.classification != ItemClassification.progression_skip_balancing:
-                    print(item.classification)
+        # for item in pending_item_pool:
+        #     if item.name == "Shroom":
+        #         if item.classification != ItemClassification.progression_skip_balancing:
+        #             print(item.classification)
         pending_item_pool.remove(next(
             item for item in pending_item_pool
             if item.classification == ItemClassification.filler
