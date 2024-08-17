@@ -94,9 +94,9 @@ class CavernOfDreamsCollectionState(metaclass=AutoLogicRegister):
 
         reachable = {}
         blocked = {}
-        for event_and_region_name in carryable_locations.keys():
-            reachable[event_and_region_name] = {player: set() for player in cod_ids}
-            blocked[event_and_region_name] = {player: set() for player in cod_ids}
+        for event_and_location_name in carryable_locations.keys():
+            reachable[event_and_location_name] = {player: set() for player in cod_ids}
+            blocked[event_and_location_name] = {player: set() for player in cod_ids}
         self._cavernofdreams_reachable_regions = reachable
         self._cavernofdreams_blocked_connections = blocked
         self._cavernofdreams_carryable_sources = {player: Counter() for player in cod_ids}
@@ -108,19 +108,25 @@ class CavernOfDreamsCollectionState(metaclass=AutoLogicRegister):
         ret._cavernofdreams_player_ids = cod_ids
 
         reachable = {}
-        for event_and_region_name, by_player in self._cavernofdreams_reachable_regions.items():
-            reachable[event_and_region_name] = {player: copy.copy(by_player[player]) for player in cod_ids}
+        for event_and_location_name, regions_by_player in self._cavernofdreams_reachable_regions.items():
+            reachable[event_and_location_name] = {}
+            for player in cod_ids:
+                if (player_reachable := regions_by_player.get(player)) is None: continue
+                reachable[event_and_location_name][player] = copy.copy(player_reachable)
         ret._cavernofdreams_reachable_regions = reachable
+
+        blocked = {}
+        for event_and_location_name, entrances_by_player in self._cavernofdreams_blocked_connections.items():
+            blocked[event_and_location_name] = {}
+            for player in cod_ids:
+                if (player_blocked := entrances_by_player.get(player)) is None: continue
+                blocked[event_and_location_name][player] = copy.copy(player_blocked)
+        ret._cavernofdreams_blocked_connections = blocked
 
         ret._cavernofdreams_carryable_sources = {
             player: copy.copy(self._cavernofdreams_carryable_sources[player])
             for player in cod_ids
         }
-
-        blocked = {}
-        for event_and_region_name, by_player in self._cavernofdreams_blocked_connections.items():
-            blocked[event_and_region_name] = {player: copy.copy(by_player[player]) for player in cod_ids}
-        ret._cavernofdreams_blocked_connections = blocked
 
         # NOTE: may need a deeper copy?
         ret._cavernofdreams_paths = {player: copy.copy(self._cavernofdreams_paths[player]) for player in cod_ids}
