@@ -130,7 +130,7 @@ class CavernOfDreamsWorld(World):
             "splitGratitude": self.options.gratitudesanity == 2,
             "startLocation": str(self.options.start_location),
             "entranceMap": self.entrance_map,
-            "dropCarryables": self.options.carryablesanity == Carryablesanity.option_kind,
+            "dropCarryables": not self.options.carry_through_doors,
             "pityItems": self.pity_items,
             "allowFun": self.options.allow_fun.value == 1
         }

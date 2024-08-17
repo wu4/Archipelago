@@ -147,6 +147,16 @@ class Carryablesanity(Choice):
     option_mean = 2
 
 
+class CarryThroughDoors(Toggle):
+    """
+    Allows Fynn to carry temporary items through doorways.
+
+    When disabled, Fynn drops anything they're carrying as they move to a new
+    area. Forces Carryablesanity to Kind.
+    """
+    default = 1
+
+
 class Shroomsanity(Toggle):
     """Shuffles all shrooms into the pool."""
     default = 1
@@ -329,13 +339,26 @@ class AirTailJump(Toggle):
     default = 0
 
 
+class JesterBootsSlopeMovement(Toggle):
+    """
+    Allows use of the Jester Boots to climb normally unwalkable slopes in
+    logic.
+
+    Some slopes can uniquely be climbed while wearing the Jester Boots. For
+    example, you can grab the Deep Woods egg location by simply walking up the
+    wall with the Jester Boots.
+    """
+    default = 0
+
+
 class AllowFun(Toggle):
     """
     Allows making use of some combinations of abilities that are out-of-logic.
 
     When disabled, the Jester Boots have a distaste for Fynn carrying items,
     and will refuse to allow Fynn to pick items up unless they are taken off
-    first.
+    first. They're only fine with the idea if you are within the boundaries of
+    the Deep Woods.
     """
     default = 0
 
@@ -384,6 +407,11 @@ class CavernOfDreamsOptions(PerGameCommonOptions):
 
     ground_tail_jump: GroundTailJump
     air_tail_jump: AirTailJump
+
+    jester_boots_slope_movement: JesterBootsSlopeMovement
+
+    carry_through_doors: CarryThroughDoors
+
     allow_fun: AllowFun
 
     death_link: DeathLink

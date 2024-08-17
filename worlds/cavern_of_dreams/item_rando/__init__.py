@@ -1,4 +1,5 @@
 from collections.abc import Generator, Iterable
+from copy import copy
 import logging
 from typing import TYPE_CHECKING, Any, Counter
 
@@ -6,7 +7,7 @@ from BaseClasses import ItemClassification
 from Fill import fill_restrictive
 from ..custom_start_location import needs_starting_swim
 from .restrictive_starts import process_restrictive_starts
-from ..options import AirSwim, Carryablesanity, Difficulty, Gratitudesanity, StartLocation, SuperBounce, SuperBubbleJump
+from ..options import AirSwim, AllowFun, Carryablesanity, Difficulty, Gratitudesanity, StartLocation, SuperBounce, SuperBubbleJump
 from ..ap_generated.data import item_groups, location_groups, all_items, vanilla_locations
 from .sane_items import precollect_and_place_sane_items
 
@@ -56,6 +57,110 @@ def pre_fill(self: "CavernOfDreamsWorld"):
     if self.options.carryablesanity != Carryablesanity.option_disable:
         _fill_carryablesanity(self)
 
+kind_shuffle: list[tuple[str, list[str]]] = [
+    # Deep Woods
+    ("Apple", [
+        "Lostleaf Lake - Deep Woods Apple",
+        "Lostleaf Lake - Deep Woods Jester Boots",
+    ]),
+    ("Jester Boots", [
+        "Lostleaf Lake - Deep Woods Apple",
+        "Lostleaf Lake - Deep Woods Jester Boots",
+    ]),
+
+    # The Gobbler!
+    ("Apple", [
+        "Shroom: Valley - Poms 1",
+        "Shroom: Valley - Poms 2",
+        "Shroom: Valley - Poms 3",
+        "Shroom: Valley - Poms 4",
+        "Shroom: Valley - Poms 5",
+
+        "Shroom: Valley - Entry Tree 1",
+        "Shroom: Valley - Entry Tree 2",
+        "Shroom: Valley - Entry Tree 3",
+
+        "Card: Valley - Above Pool",
+
+        "Card: Valley - Snowcastle",
+        "Egg: Valley - Snowcastle",
+
+        "Shroom: Valley - Jester Boots 1",
+        "Shroom: Valley - Jester Boots 2",
+        "Shroom: Valley - Jester Boots 3",
+        "Shroom: Valley - Jester Boots 4",
+        "Shroom: Valley - Jester Boots 5",
+
+        "Valley - Jester Boots",
+
+        "Shroom: Valley - Pom Spire 1",
+        "Shroom: Valley - Pom Spire 2",
+        "Shroom: Valley - Pom Spire 3",
+        "Shroom: Valley - Pom Spire 4",
+        "Shroom: Valley - Pom Spire 5",
+
+        "Shroom: Valley - Observatory Spire 1",
+        "Shroom: Valley - Observatory Spire 2",
+        "Shroom: Valley - Observatory Spire 3",
+        "Shroom: Valley - Observatory Spire 4",
+        "Shroom: Valley - Observatory Spire 5",
+
+        "Lady Opal's Egg: Castle",
+
+        "Card: Valley - Top of Observatory",
+
+        "Card: Valley - Top of Palace",
+        "Egg: Valley - Top of the Palace",
+
+        "Shroom: Valley - Lake Corner 1",
+        "Shroom: Valley - Lake Corner 2",
+        "Shroom: Valley - Lake Corner 3",
+
+        "Shroom: Valley - Lake Plants 1",
+        "Shroom: Valley - Lake Plants 2",
+        "Shroom: Valley - Lake Plants 3",
+        "Shroom: Valley - Lake Plants 4",
+        "Shroom: Valley - Lake Plants 5",
+        "Shroom: Valley - Lake Plants 6",
+
+        "Shroom: Valley - Lake Behind 1",
+        "Shroom: Valley - Lake Behind 2",
+        "Shroom: Valley - Lake Behind 3",
+
+        "Shroom: Valley - Lake Gobbler 1",
+        "Shroom: Valley - Lake Gobbler 2",
+        "Shroom: Valley - Lake Gobbler 3",
+    ]),
+
+    # Sage's painting
+    ("Sage's Gloves", [
+        "Card: Foyer - Water Lobby Entrance",
+        "Egg: Foyer - Matryoshka Egg"
+    ]),
+
+    # Shelnert's painting
+    ("Shelnert's Fish", [
+        "Card: Earth Lobby - Swamp Castle",
+        "Egg: Earth Lobby - Skull's Eye",
+        "Card: Earth Lobby - Swamp",
+    ]),
+
+    # Mr. Kerrington's painting
+    ("Mr. Kerrington's Wings", [
+        "Fire Lobby - Shelnert's Fish",
+        "Egg: Fire Lobby - Mr. Kerrington Painting"
+    ]),
+
+    # Lady Opal's painting
+    ("Lady Opal's Head", [
+        "Water Lobby - Jester Boots",
+        "Water Lobby - Lady Opal's Head",
+        "Egg: Water Lobby - Deepest Darkness",
+        "Card: Water Lobby - Sewer Bottom",
+        "Egg: Water Lobby - Sewer"
+    ]),
+]
+
 def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_pool: list["Item"]):
     pool_size = len(pending_item_pool)
     location_count = len(self.multiworld.get_unfilled_locations(self.player))
@@ -87,8 +192,27 @@ def _all_carryable_items():
 def _fill_carryablesanity(world: "CavernOfDreamsWorld"):
     carryables = Counter(_all_carryable_items())
 
+    locations_placed: list[str] = []
+
+    def place_carryable(carryable_name: str, location_name: str):
+        jb_location = world.multiworld.get_location(location_name, world.player)
+        jb_location.place_locked_item(world.create_item(carryable_name))
+        locations_placed.append(location_name)
+        carryables[carryable_name] -= 1
+
+
+    place_carryable("Jester Boots", "Lostleaf Lake - Deep Woods Jester Boots")
+
+    # force_vanilla_deep_woods = world.options.carryablesanity == Carryablesanity.option_mean and not world.options.jester_boots_slope_movement
+    # if force_vanilla_deep_woods:
+    #     place_carryable("Apple", "Lostleaf Lake - Deep Woods Apple")
+
     if world.options.carryablesanity == Carryablesanity.option_kind:
-        pass
+        for carryable_name, location_names in kind_shuffle:
+            if not world.options.shroomsanity:
+                location_names = list(filter(lambda x: not x.startswith("Shroom:"), location_names))
+            location_names = list(filter(lambda location: location not in locations_placed, location_names))
+            place_carryable(carryable_name, world.random.choice(location_names))
 
     carryables_to_rando: list[Item] = []
     for carryable_name in carryables:
@@ -97,12 +221,15 @@ def _fill_carryablesanity(world: "CavernOfDreamsWorld"):
             carryables_to_rando.append(world.create_item(carryable_name))
 
     state = world.multiworld.get_all_state(False)
-    world.random.shuffle(world.carryable_locations)
+
+    carryable_locations = list(filter(lambda x: x.name not in locations_placed, world.carryable_locations))
+
+    world.random.shuffle(carryable_locations)
 
     fill_restrictive(
         world.multiworld,
         state,
-        world.carryable_locations,
+        carryable_locations,
         carryables_to_rando,
         single_player_placement=True,
         name="Carryablesanity"
