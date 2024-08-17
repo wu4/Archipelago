@@ -60,7 +60,7 @@ class CavernOfDreamsWorld(World):
         self.entrance_map = []
         super().__init__(multiworld, player)
 
-    def _adjust_teleport_prog_item(self, gratitude_name: str, state: CollectionState, amount: int):
+    def _adjust_teleport_prog_item(self, gratitude_name: str, state: "CollectionState", amount: int):
         if gratitude_name == "Gratitude 1":
             teleport_name = "Lake"
         elif gratitude_name == "Gratitude 2":
