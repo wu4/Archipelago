@@ -16,10 +16,8 @@ class CavernOfDreamsItem(Item):
             return ItemClassification.progression
 
     def __init__(self, name: str, code: int, player: int):
-        if name == "Progression Shroom":
+        if name == "Shroom":
             super().__init__("Shroom", ItemClassification.progression_skip_balancing, code, player)
-        elif name == "Shroom":
-            super().__init__("Shroom", ItemClassification.filler, code, player)
         else:
             super().__init__(name, CavernOfDreamsItem.get_classification(name), code, player)
 

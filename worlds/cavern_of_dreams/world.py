@@ -159,10 +159,7 @@ class CavernOfDreamsWorld(World):
     def create_item(self, name: str) -> "Item":
         if name in item_groups["Carryable"]:
             return CavernOfDreamsCarryable(name, self.item_name_to_id[name], self.player)
-        id_name = name
-        if name == "Progression Shroom":
-            id_name = "Shroom"
-        return CavernOfDreamsItem(name, self.item_name_to_id[id_name], self.player)
+        return CavernOfDreamsItem(name, self.item_name_to_id[name], self.player)
 
     def create_event(self, name: str, skippable: bool = False) -> CavernOfDreamsEvent:
         return CavernOfDreamsEvent(name, self.player, skippable)
