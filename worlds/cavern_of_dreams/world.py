@@ -141,6 +141,9 @@ class CavernOfDreamsWorld(World):
                 self.options.split_tail.value = SplitTail.option_false
                 logger.warning(f"split tail disabled for player {self.multiworld.get_player_name(self.player)} due to ability shuffle being disabled")
 
+        if self.options.carryablesanity != Carryablesanity.option_kind and not self.options.carry_through_doors:
+            self.options.carryablesanity.value = Carryablesanity.option_kind
+            logger.warning(f"carryablesanity forced to 'kind' for player {self.multiworld.get_player_name(self.player)} due to carry_through_doors being disabled")
         if self.options.accessibility != Accessibility.option_minimal:
             minimal_reasons: list[str] = []
             if self.options.entrance_rando:
