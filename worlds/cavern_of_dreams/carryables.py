@@ -23,11 +23,37 @@ class CarryableTestResult(IntFlag):
     FAIL           = 0b0100
     NEVER          = 0b1100
 
+def _check_none_access(
+    node: "CavernOfDreamsEntrance | CavernOfDreamsLocation",
+    state: "CollectionState"
+) -> CarryableTestResult:
+    can_be_traversed = False
+    if node.dont_care_access_rule:
+        can_be_traversed = True
+        if node.dont_care_access_rule(state): return CarryableTestResult.NEED_NONE
+
+    if rule := node.carryable_access_rules.get(None):
+        can_be_traversed = True
+        if rule(state): return CarryableTestResult.NEED_NONE
+
+    for inverse_carryable, rule in node.inverse_carryable_access_rules.items():
+        if inverse_carryable is None: continue
+        can_be_traversed = True
+        if rule(state): return CarryableTestResult.NEED_NONE
+
+    if can_be_traversed:
+        return CarryableTestResult.FAIL
+    else:
+        return CarryableTestResult.NEVER
+
 def check_carryable_access(
     node: "CavernOfDreamsEntrance | CavernOfDreamsLocation",
     carryable: "MaybeTempItem",
     state: "CollectionState"
 ) -> CarryableTestResult:
+    if carryable is not None and node.reject_carryables:
+        return _check_none_access(node, state)
+
     can_be_traversed = False
     if node.dont_care_access_rule:
         can_be_traversed = True

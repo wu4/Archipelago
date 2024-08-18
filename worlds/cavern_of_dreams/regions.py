@@ -22,6 +22,8 @@ def simple_can_reach(node: "CavernOfDreamsLocation | CavernOfDreamsEntrance", st
 class CavernOfDreamsLocation(Location):
     game = "Cavern of Dreams"
 
+    reject_carryables: bool = False
+
     parent_region: "CavernOfDreamsRegion"
 
     carryable_access_rules: CarryableAccessRules
@@ -142,11 +144,8 @@ def _update_region_accessibility(
 
     # run BFS on all connections, and keep track of those blocked by missing items
     while queue:
-        connection: Entrance = queue.popleft()
+        connection = queue.popleft()
         new_region = connection.connected_region
-        if temp_item is not None and connection.reject_carryables:
-            blocked_connections.remove(connection)
-            continue
         if new_region in reachable_regions:
             blocked_connections.remove(connection)
             continue
