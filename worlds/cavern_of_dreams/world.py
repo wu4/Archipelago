@@ -133,7 +133,7 @@ class CavernOfDreamsWorld(World):
             "dropCarryables": not self.options.carry_through_doors,
             "pityItems": self.pity_items,
             "allowFun": self.options.allow_fun.value == 1,
-            "deathLink": self.options.death_link == DeathLink.option_true
+            "deathLink": self.options.death_link == DeathLink.option_true,
         }
 
     def generate_early(self) -> None:
