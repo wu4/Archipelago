@@ -1,5 +1,5 @@
 from collections.abc import Generator, Iterable, Iterator, Sequence
-from Options import Accessibility
+from Options import Accessibility, DeathLink
 import logging
 from worlds.AutoWorld import WebWorld, World
 
@@ -132,7 +132,8 @@ class CavernOfDreamsWorld(World):
             "entranceMap": self.entrance_map,
             "dropCarryables": not self.options.carry_through_doors,
             "pityItems": self.pity_items,
-            "allowFun": self.options.allow_fun.value == 1
+            "allowFun": self.options.allow_fun.value == 1,
+            "deathLink": self.options.death_link == DeathLink.option_true
         }
 
     def generate_early(self) -> None:
