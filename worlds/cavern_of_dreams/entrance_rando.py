@@ -1,8 +1,8 @@
 from collections.abc import Generator, Iterable
 from typing import TYPE_CHECKING, TypeAlias
 
-from .options import Carryablesanity
-from .regions import CavernOfDreamsEntrance
+from .options import CarryThroughDoors, Carryablesanity
+from .regions import CavernOfDreamsEntrance, CavernOfDreamsRegion
 from .ap_generated.entrance_rando import parent_regions, create_entrances as generated_create_entrances, bilinear, one_way
 if TYPE_CHECKING:
     from .world import CavernOfDreamsWorld
@@ -28,14 +28,12 @@ def _make_entrance_underwater(entrance: "CavernOfDreamsEntrance"):
     entrance.access_rule = lambda state: state.has("Swim", entrance.player) and old_access_rule(state)
 
 def _link_entrances(world: "CavernOfDreamsWorld", entrance_map: list[tuple[str,str]], entrances: dict[str, tuple[CavernOfDreamsEntrance | None, bool]]):
-    is_kind_carryablesanity = world.options.carryablesanity == Carryablesanity.option_kind
+
+    keep_carryables = world.options.carry_through_doors == CarryThroughDoors.option_true
     for from_entrance_name, to_entrance_name in entrance_map:
         from_entrance, _ = entrances[from_entrance_name]
         if from_entrance is None: continue
         _, to_entrance_underwater = entrances[to_entrance_name]
-
-        if is_kind_carryablesanity:
-            from_entrance.reject_carryables = True
 
         if to_entrance_underwater:
             _make_entrance_underwater(from_entrance)
@@ -43,8 +41,29 @@ def _link_entrances(world: "CavernOfDreamsWorld", entrance_map: list[tuple[str,s
         from_parent_region = parent_regions[from_entrance_name]
         from_entrance.parent_region = world.multiworld.get_region(from_parent_region, world.player)
         from_entrance.parent_region.exits.append(from_entrance)
-        to_parent_region = parent_regions[to_entrance_name]
-        from_entrance.connect(world.multiworld.get_region(to_parent_region, world.player))
+        to_parent_region_name = parent_regions[to_entrance_name]
+        to_parent_region = world.multiworld.get_region(to_parent_region_name, world.player)
+
+        print(f"{from_entrance_name} -> {to_entrance_name}")
+
+        if keep_carryables:
+            from_entrance.connect(to_parent_region)
+        else:
+            # create an intermediate region wherein all carryables are dropped
+            intermediate_connection_name = f"{from_entrance_name} -> (dropping carryables) -> {to_entrance_name}"
+
+            intermediate_region = CavernOfDreamsRegion(intermediate_connection_name, world.player, world.multiworld)
+
+            intermediate_entrance = CavernOfDreamsEntrance(world.player, intermediate_connection_name, intermediate_region)
+            intermediate_entrance.dont_care_access_rule = lambda s: True
+            intermediate_entrance.reject_carryables = True
+
+            intermediate_region.exits.append(intermediate_entrance)
+            world.multiworld.regions.append(intermediate_region)
+
+            from_entrance.connect(intermediate_region)
+            intermediate_entrance.connect(to_parent_region)
+
 
 def create_and_link_entrances(world: "CavernOfDreamsWorld") -> list[EntranceExitPair]:
     entrances = generated_create_entrances(world)

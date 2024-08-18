@@ -1,5 +1,4 @@
 from collections.abc import Generator, Iterable
-from copy import copy
 import logging
 from typing import TYPE_CHECKING, Any, Counter
 
@@ -7,7 +6,7 @@ from BaseClasses import ItemClassification
 from Fill import fill_restrictive
 from ..custom_start_location import needs_starting_swim
 from .restrictive_starts import process_restrictive_starts
-from ..options import AirSwim, AllowFun, Carryablesanity, Difficulty, Gratitudesanity, StartLocation, SuperBounce, SuperBubbleJump
+from ..options import AirSwim, Carryablesanity, Difficulty, Gratitudesanity, StartLocation, SuperBounce, SuperBubbleJump
 from ..ap_generated.data import item_groups, location_groups, all_items, vanilla_locations
 from .sane_items import precollect_and_place_sane_items
 
@@ -57,19 +56,65 @@ def pre_fill(self: "CavernOfDreamsWorld"):
     if self.options.carryablesanity != Carryablesanity.option_disable:
         _fill_carryablesanity(self)
 
-kind_shuffle: list[tuple[str, list[str]]] = [
+kind_shuffle: list[tuple[list[str], list[str]]] = [
     # Deep Woods
-    ("Apple", [
+    (["Apple"], [
         "Lostleaf Lake - Deep Woods Apple",
         "Lostleaf Lake - Deep Woods Jester Boots",
     ]),
-    ("Jester Boots", [
-        "Lostleaf Lake - Deep Woods Apple",
-        "Lostleaf Lake - Deep Woods Jester Boots",
+    # ("Jester Boots", [
+    #     "Lostleaf Lake - Deep Woods Apple",
+    #     "Lostleaf Lake - Deep Woods Jester Boots",
+    # ]),
+
+    # Kerrington's boils
+    (["Medicine"], [
+        "Kerrington - Rain Medicine",
+
+        "Shroom: Kerrington - Rain Entryway 1",
+        "Shroom: Kerrington - Rain Entryway 2",
+        "Shroom: Kerrington - Rain Entryway 3",
+        "Shroom: Kerrington - Rain Entryway 4",
+
+        "Shroom: Kerrington - Rain Below Boiler 1",
+        "Shroom: Kerrington - Rain Below Boiler 2",
+        "Shroom: Kerrington - Rain Below Boiler 3",
+
+        "Shroom: Kerrington - Rain Plant Base",
+        "Shroom: Kerrington - Rain Plant 1",
+        "Shroom: Kerrington - Rain Plant 2",
+        "Shroom: Kerrington - Rain Plant 3",
+        "Shroom: Kerrington - Rain Plant 4",
+
+        "Shroom: Kerrington - Rain Below Medicine 1",
+        "Shroom: Kerrington - Rain Below Medicine 2",
+        "Shroom: Kerrington - Rain Below Medicine 3",
+
+        "Shroom: Kerrington - Lab Rain Connector 1",
+        "Shroom: Kerrington - Lab Rain Connector 2",
+        "Shroom: Kerrington - Lab Rain Connector 3",
+        "Shroom: Kerrington - Lab Rain Connector 4",
+        "Shroom: Kerrington - Lab Rain Connector 5",
+        "Shroom: Kerrington - Lab Rain Connector 6",
+    ]),
+
+    # growing a tree in Gallery Lobby
+    (["Apple"], [
+        "Egg: Gallery Lobby - Lostleaf Lobby Entryway"
+    ]),
+
+    # growing a tree in the crypt
+    # (["Apple"], [
+    #     "Egg: Crypt - Shelwart's Gravestone"
+    # ]),
+
+    # backside apple
+    (["Apple"], [
+        "Lostleaf Lake - Crypt Apple"
     ]),
 
     # The Gobbler!
-    ("Apple", [
+    (["Apple"], [
         "Shroom: Valley - Poms 1",
         "Shroom: Valley - Poms 2",
         "Shroom: Valley - Poms 3",
@@ -133,26 +178,80 @@ kind_shuffle: list[tuple[str, list[str]]] = [
     ]),
 
     # Sage's painting
-    ("Sage's Gloves", [
+    (["Sage's Gloves"], [
         "Card: Foyer - Water Lobby Entrance",
         "Egg: Foyer - Matryoshka Egg"
     ]),
 
     # Shelnert's painting
-    ("Shelnert's Fish", [
+    (["Shelnert's Fish"], [
         "Card: Earth Lobby - Swamp Castle",
         "Egg: Earth Lobby - Skull's Eye",
         "Card: Earth Lobby - Swamp",
     ]),
 
     # Mr. Kerrington's painting
-    ("Mr. Kerrington's Wings", [
+    (["Mr. Kerrington's Wings"], [
         "Fire Lobby - Shelnert's Fish",
         "Egg: Fire Lobby - Mr. Kerrington Painting"
     ]),
 
+    # Flying to Water Drone
+    (["Mr. Kerrington's Wings", "Jester Boots"], [
+        "Egg: Airborne Armada - Mr. Kerrington's Tail",
+
+        "Card: Airborne Armada - Broken Wing",
+
+        "Card: Airborne Armada - Behind Entry Drone",
+
+        "Shroom: Airborne Armada - Bouncy Shroom 1",
+        "Shroom: Airborne Armada - Bouncy Shroom 3",
+        "Shroom: Airborne Armada - Bouncy Shroom 2",
+        "Shroom: Airborne Armada - Bouncy Shroom 4",
+        "Shroom: Airborne Armada - Entry Pathway 5",
+        "Shroom: Airborne Armada - Front Entrance 1",
+        "Shroom: Airborne Armada - Front Entrance 2",
+        "Shroom: Airborne Armada - Front Entrance 3",
+        "Shroom: Airborne Armada - Side 1",
+        "Shroom: Airborne Armada - Side 2",
+        "Shroom: Airborne Armada - Side Yellow Ledge",
+        "Shroom: Airborne Armada - Back Entrance 1",
+        "Shroom: Airborne Armada - Back Entrance 2",
+        "Shroom: Airborne Armada - Back Entrance 3",
+        "Shroom: Airborne Armada - Back Entrance 4",
+        "Shroom: Airborne Armada - Back Entrance 6",
+        "Shroom: Airborne Armada - Back Entrance 5",
+        "Shroom: Airborne Armada - Topside 1",
+        "Shroom: Airborne Armada - Topside 2",
+        "Shroom: Airborne Armada - Topside 3",
+        "Shroom: Airborne Armada - Entry Pathway 1",
+        "Shroom: Airborne Armada - Entry Pathway 2",
+        "Shroom: Airborne Armada - Entry Pathway 3",
+        "Shroom: Airborne Armada - Entry Pathway 4",
+    ]),
+
+    # Accessing the Drown painting
+    (["Jester Boots"], [
+        "Water Lobby - Jester Boots",
+        "Water Lobby - Lady Opal's Head",
+        "Egg: Water Lobby - Deepest Darkness",
+        "Card: Water Lobby - Sewer Bottom",
+        "Egg: Water Lobby - Sewer"
+    ]),
+
+    # Armada Lobby Jester Boots
+    (["Jester Boots"], [
+        "Shroom: Armada Lobby - Cliffside 1",
+        "Shroom: Armada Lobby - Cliffside 2",
+        "Shroom: Armada Lobby - Cliffside 3",
+        "Shroom: Armada Lobby - Cliffside 4",
+        "Shroom: Armada Lobby - Cliffside 5",
+
+        "Armada Lobby - Jester Boots",
+    ]),
+
     # Lady Opal's painting
-    ("Lady Opal's Head", [
+    (["Lady Opal's Head"], [
         "Water Lobby - Jester Boots",
         "Water Lobby - Lady Opal's Head",
         "Egg: Water Lobby - Deepest Darkness",
@@ -180,8 +279,7 @@ def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_po
         #             print(item.classification)
         pending_item_pool.remove(next(
             item for item in pending_item_pool
-            if item.classification == ItemClassification.filler
-               and item.name == "Shroom"
+            if item.name == "Shroom"
         ))
         diff += 1
 
@@ -194,25 +292,39 @@ def _fill_carryablesanity(world: "CavernOfDreamsWorld"):
 
     locations_placed: list[str] = []
 
-    def place_carryable(carryable_name: str, location_name: str):
-        jb_location = world.multiworld.get_location(location_name, world.player)
-        jb_location.place_locked_item(world.create_item(carryable_name))
+    def try_place_carryable(carryable_name: str, location_name: str):
+        print(f"placing {carryable_name} at {location_name}")
+        location = world.multiworld.get_location(location_name, world.player)
+        if location.item is not None:
+            print("failed")
+            return False
+
+        location.place_locked_item(world.create_item(carryable_name))
         locations_placed.append(location_name)
         carryables[carryable_name] -= 1
 
+        print("success")
+        return True
 
-    place_carryable("Jester Boots", "Lostleaf Lake - Deep Woods Jester Boots")
+
+    assert try_place_carryable("Jester Boots", "Lostleaf Lake - Deep Woods Jester Boots")
 
     # force_vanilla_deep_woods = world.options.carryablesanity == Carryablesanity.option_mean and not world.options.jester_boots_slope_movement
     # if force_vanilla_deep_woods:
     #     place_carryable("Apple", "Lostleaf Lake - Deep Woods Apple")
 
     if world.options.carryablesanity == Carryablesanity.option_kind:
-        for carryable_name, location_names in kind_shuffle:
+        # if not world.options.carry_through_doors:
+        #     del world.multiworld.regions.region_cache[world.player]["LAKE.Crypt.EggSoil.PlantableSoil"]
+        #     del world.multiworld.regions.location_cache[world.player]["LAKE.Crypt.EggSoil"]
+
+        for carryable_names, location_names in kind_shuffle:
             if not world.options.shroomsanity:
                 location_names = list(filter(lambda x: not x.startswith("Shroom:"), location_names))
             location_names = list(filter(lambda location: location not in locations_placed, location_names))
-            place_carryable(carryable_name, world.random.choice(location_names))
+            result = False
+            while not result:
+                result = try_place_carryable(world.random.choice(carryable_names), world.random.choice(location_names))
 
     carryables_to_rando: list[Item] = []
     for carryable_name in carryables:
@@ -281,13 +393,13 @@ def _get_pity_items(self: "CavernOfDreamsWorld"):
             if self.options.shuffle_carry:
                 yield "Carry"
 
-def _make_first_shrooms_progression(items: Iterable[str], count: int):
-    for item in items:
-        if item == "Shroom" and count > 0:
-            yield "Progression Shroom"
-            count -= 1
-            continue
-        yield item
+# def _make_first_shrooms_progression(items: Iterable[str], count: int):
+#     for item in items:
+#         if item == "Shroom" and count > 0:
+#             yield "Progression Shroom"
+#             count -= 1
+#             continue
+#         yield item
 
 def create_items(self: "CavernOfDreamsWorld"):
     exclude = Counter(_get_excluded_items(self))
@@ -306,7 +418,7 @@ def create_items(self: "CavernOfDreamsWorld"):
 
     pending_item_pool = [
         self.create_item(item)
-        for item in (Counter(_make_first_shrooms_progression(all_items, 40 + 60 + 80 + 100)) - exclude).elements()
+        for item in (Counter(all_items) - exclude).elements()
     ]
 
     _match_pool_size_with_locations(self, pending_item_pool)
