@@ -44,8 +44,6 @@ def _link_entrances(world: "CavernOfDreamsWorld", entrance_map: list[tuple[str,s
         to_parent_region_name = parent_regions[to_entrance_name]
         to_parent_region = world.multiworld.get_region(to_parent_region_name, world.player)
 
-        print(f"{from_entrance_name} -> {to_entrance_name}")
-
         if keep_carryables:
             from_entrance.connect(to_parent_region)
         else:
@@ -72,9 +70,6 @@ def create_and_link_entrances(world: "CavernOfDreamsWorld") -> list[EntranceExit
         rando_bilinear = _randomize_entrance_pairs(world, bilinear)
         rando_one_way = _randomize_entrance_pairs(world, one_way)
         entrance_map = [*rando_one_way, *_include_flipped(rando_bilinear)]
-        # print("rando map:")
-        # for warp, dest in entrance_map:
-        #     print(f"{warp} -> {dest}")
     else:
         entrance_map = [*one_way, *_include_flipped(bilinear)]
 

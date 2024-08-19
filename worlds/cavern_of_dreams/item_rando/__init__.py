@@ -293,19 +293,14 @@ def _fill_carryablesanity(world: "CavernOfDreamsWorld"):
     locations_placed: list[str] = []
 
     def try_place_carryable(carryable_name: str, location_name: str):
-        print(f"placing {carryable_name} at {location_name}")
         location = world.multiworld.get_location(location_name, world.player)
-        if location.item is not None:
-            print("failed")
-            return False
+        if location.item is not None: return False
 
         location.place_locked_item(world.create_item(carryable_name))
         locations_placed.append(location_name)
         carryables[carryable_name] -= 1
 
-        print("success")
         return True
-
 
     assert try_place_carryable("Jester Boots", "Lostleaf Lake - Deep Woods Jester Boots")
 
