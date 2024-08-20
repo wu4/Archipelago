@@ -1,12 +1,13 @@
+from collections import deque
 from collections.abc import Generator, Iterable
 import logging
-from typing import TYPE_CHECKING, Any, Counter
+from typing import TYPE_CHECKING, Any, Callable, Counter
 
 from BaseClasses import ItemClassification
 from Fill import fill_restrictive
 from ..custom_start_location import needs_starting_swim
 from .restrictive_starts import process_restrictive_starts
-from ..options import AirSwim, Carryablesanity, Difficulty, Gratitudesanity, StartLocation, SuperBounce, SuperBubbleJump
+from ..options import AirSwim, Carryablesanity, Difficulty, Gratitudesanity, Shroomsanity, StartLocation, SuperBounce, SuperBubbleJump
 from ..ap_generated.data import item_groups, location_groups, all_items, vanilla_locations
 from .sane_items import precollect_and_place_sane_items
 
@@ -272,16 +273,27 @@ def _match_pool_size_with_locations(self: "CavernOfDreamsWorld", pending_item_po
         pending_item_pool.append(self.create_item("Shroom"))
         diff -= 1
 
-    while diff < 0:
-        # for item in pending_item_pool:
-        #     if item.name == "Shroom":
-        #         if item.classification != ItemClassification.progression_skip_balancing:
-        #             print(item.classification)
-        pending_item_pool.remove(next(
-            item for item in pending_item_pool
-            if item.name == "Shroom"
-        ))
-        diff += 1
+
+    if diff < 0:
+        deletion_marks: deque[int] = deque()
+
+        is_shroomsanity = self.options.shroomsanity == Shroomsanity.option_true
+
+        item_filter: Callable[[Item], bool]
+        if is_shroomsanity:
+            item_filter = lambda x: x.name == "Shroom"
+        else:
+            item_filter = lambda x: x.name.startswith("Card:")
+
+        for i, item in enumerate(pending_item_pool):
+            if item_filter(item):
+                deletion_marks.appendleft(i)
+                diff += 1
+                if diff == 0:
+                    break
+
+        for i in deletion_marks:
+            del pending_item_pool[i]
 
 def _all_carryable_items():
     for location in location_groups["Carryable"]:
